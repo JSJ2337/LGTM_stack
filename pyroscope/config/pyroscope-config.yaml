@@ -1,0 +1,26 @@
+target: all           # single-binary
+
+server:
+  http_listen_port: 4040
+  grpc_listen_port: 4041
+  log_level: info
+
+storage:
+  backend: s3
+  s3:
+    bucket_name: sys-lgtm-s3
+    endpoint: s3.ap-northeast-2.amazonaws.com
+    region: ap-northeast-2
+    insecure: false
+  prefix: ftt-pyroscope
+
+
+pyroscopedb:
+  data_path: /data
+  max_block_duration: 1h          # 헤드 블록 1 시간마다 컷팅
+
+compactor:
+  deletion_delay: 12h             # soft-delete → hard-delete 지연값 :contentReference[oaicite:0]{index=0}
+
+limits:
+  compactor_blocks_retention_period: 720h   # 30 일 보존 :contentReference[oaicite:1]{index=1}

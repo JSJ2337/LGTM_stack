@@ -1,0 +1,20 @@
+// ------------------------------------------------------------
+// 3) RDS Logs (Lambda -> Alloy -> Loki)
+// ------------------------------------------------------------
+// /etc/alloy/config.d/rds-pass.alloy
+
+loki.source.api "ftt_lambda_receiver" {
+  http {
+    listen_address = "0.0.0.0"
+    listen_port    = 9080
+  }
+  // 라벨 가공 없이 바로 Loki로
+  forward_to = [loki.write.rds_loki_out.receiver]
+}
+
+loki.write "rds_loki_out" {
+  endpoint {
+    url       = "http://ftt-loki:3100/loki/api/v1/push"
+    tenant_id = "aws-rds-log"   // ← Grafana 데이터소스/Explore의 Tenant와 일치
+  }
+}

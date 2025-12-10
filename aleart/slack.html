@@ -1,0 +1,161 @@
+{{ define "slack_webhook_hybrid.body" }}
+
+{{- /* ===== 공통 메타 ===== */ -}}
+{{- $name := "Alert" -}}
+{{- if .CommonLabels.alertname -}} {{- $name = .CommonLabels.alertname -}}
+{{- else if gt (len .Alerts) 0 -}} {{- $name = (index .Alerts 0).Labels.alertname -}} {{- end -}}
+
+{{- $sev := "info" -}}
+{{- if .CommonLabels.severity -}} {{- $sev = .CommonLabels.severity -}}
+{{- else if gt (len .Alerts) 0 -}} {{- $sev = (index .Alerts 0).Labels.severity -}} {{- end -}}
+
+{{- /* 상태/색상/아이콘 */ -}}
+{{- $sevIcon := ":grey_question:" -}}
+{{- $color   := "#95a5a6" -}}
+{{- if eq .Status "firing" -}}
+  {{- if or (eq $sev "emergency") (eq $sev "EMERGENCY") -}}
+      {{- $sevIcon = ":fire:" -}}          {{- $color = "#8B5CF6" -}}
+  {{- else if or (eq $sev "down") (eq $sev "DOWN") -}}
+      {{- $sevIcon = ":no_entry:" -}}      {{- $color = "#FF6D00" -}}
+  {{- else if or (eq $sev "critical") (eq $sev "CRITICAL") -}}
+      {{- $sevIcon = ":rotating_light:" -}} {{- $color = "#E11D48" -}}
+  {{- else if or (eq $sev "warning") (eq $sev "WARNING") (eq $sev "caution") (eq $sev "CAUTION") -}}
+      {{- $sevIcon = ":warning:" -}}       {{- $color = "#FFB300" -}}
+  {{- else -}}
+      {{- $sevIcon = ":information_source:" -}} {{- $color = "#36C5F0" -}}
+  {{- end -}}
+{{- else -}}
+  {{- $sevIcon = ":white_check_mark:" -}}   {{- $color = "#2EB67D" -}}
+{{- end -}}
+
+{{- /* 상태 텍스트 */ -}}
+{{- $statusLabel := "복구" -}}
+{{- if eq .Status "firing" -}} {{- $statusLabel = "발생" -}} {{- end -}}
+
+{{- /* 푸시/미리보기용 타이틀(유니코드 이모지) */ -}}
+{{- $titleIcon := "ℹ️" -}}
+{{- if eq .Status "firing" -}}
+  {{- if or (eq $sev "emergency") (eq $sev "EMERGENCY") -}} {{- $titleIcon = "🔥" -}}
+  {{- else if or (eq $sev "down") (eq $sev "DOWN") -}}       {{- $titleIcon = "⛔" -}}
+  {{- else if or (eq $sev "critical") (eq $sev "CRITICAL") -}}{{- $titleIcon = "🚨" -}}
+  {{- else if or (eq $sev "warning") (eq $sev "WARNING") (eq $sev "caution") (eq $sev "CAUTION") -}}
+                                                             {{- $titleIcon = "⚠️" -}}
+  {{- end -}}
+{{- else -}}
+  {{- $titleIcon = "✅" -}}
+{{- end -}}
+
+{{- $title := printf "%s %s : %s (%d건)" $titleIcon $statusLabel $name (len .Alerts) -}}
+
+{
+  "text": "*{{ $title }}*",
+  "attachments": [
+    {
+      "fallback": "{{ $title }}",
+      "color": "{{ $color }}",
+      "blocks": [
+        {{- /* 알럿 목록 (최대 9건) */ -}}
+        {{- $max := 9 -}}
+        {{- range $i, $a := .Alerts }}
+        {{- if lt $i $max }}
+        {{- if eq $i 0 -}}
+        { "type": "divider" }
+        {{- else -}}
+        ,{ "type": "divider" }
+        {{- end -}}
+
+        ,{ "type": "section",
+           "text": { "type": "mrkdwn",
+             "text": ":memo: *요약* : {{ if and $a.Annotations $a.Annotations.summary }}{{ $a.Annotations.summary | js }}{{ else if and $a.Annotations $a.Annotations.description }}{{ $a.Annotations.description | js }}{{ else }}설명 없음{{ end }}" }
+         }
+
+        {{- /* 대상 = inst → instance → pod → node → host → server → job */ -}}
+        ,{ "type": "section",
+           "text": { "type": "mrkdwn",
+             "text": ":label: *대상* : `{{- if $a.Labels -}}
+              {{- if $a.Labels.inst -}}{{ $a.Labels.inst }}
+              {{- else if $a.Labels.instance -}}{{ $a.Labels.instance }}
+              {{- else if $a.Labels.pod -}}{{ $a.Labels.pod }}
+              {{- else if $a.Labels.node -}}{{ $a.Labels.node }}
+              {{- else if $a.Labels.host -}}{{ $a.Labels.host }}
+              {{- else if $a.Labels.server -}}{{ $a.Labels.server }}
+              {{- else if $a.Labels.job -}}{{ $a.Labels.job }}
+              {{- else -}}unknown{{- end -}}
+            {{- else -}}unknown{{- end -}}`
+            {{- /* 디스크/마운트/FS 부가 정보 */ -}}
+            {{- if $a.Labels -}}
+              {{- $hasExtra := false -}}
+              {{- if or $a.Labels.device $a.Labels.disk $a.Labels.volume $a.Labels.persistentvolumeclaim -}}
+                {{- $hasExtra = true -}} — disk=`
+                {{- if $a.Labels.device -}}{{ $a.Labels.device }}
+                {{- else if $a.Labels.disk -}}{{ $a.Labels.disk }}
+                {{- else if $a.Labels.volume -}}{{ $a.Labels.volume }}
+                {{- else if $a.Labels.persistentvolumeclaim -}}{{ $a.Labels.persistentvolumeclaim }}{{- end -}}`
+              {{- end -}}
+              {{- if or $a.Labels.mountpoint $a.Labels.path $a.Labels.mount $a.Labels.target -}}
+                {{- if $hasExtra -}}, {{- else -}} — {{- end -}}mount=`
+                {{- if $a.Labels.mountpoint -}}{{ $a.Labels.mountpoint }}
+                {{- else if $a.Labels.path -}}{{ $a.Labels.path }}
+                {{- else if $a.Labels.mount -}}{{ $a.Labels.mount }}
+                {{- else if $a.Labels.target -}}{{ $a.Labels.target }}{{- end -}}`
+              {{- end -}}
+              {{- if or $a.Labels.fstype $a.Labels.filesystem $a.Labels.fs_type -}}
+                {{- if $hasExtra -}}, {{- else -}} — {{- end -}}fs=`
+                {{- if $a.Labels.fstype -}}{{ $a.Labels.fstype }}
+                {{- else if $a.Labels.filesystem -}}{{ $a.Labels.filesystem }}
+                {{- else if $a.Labels.fs_type -}}{{ $a.Labels.fs_type }}{{- end -}}`
+              {{- end -}}
+            {{- end -}}" }
+         }
+
+        ,{ "type": "section",
+           "text": { "type": "mrkdwn",
+             "text": ":bar_chart: *현재값* : {{- /* annotations.current 우선, 없으면 Values에서 추출 */ -}}
+{{- if and $a.Annotations $a.Annotations.current -}}
+  {{- $a.Annotations.current | js -}}
+{{- else -}}
+  {{- $val := "" -}}
+  {{- if $a.Values -}}
+    {{- if (index $a.Values "A") -}}
+      {{- $val = printf "%.1f" (index $a.Values "A") -}}
+    {{- else -}}
+      {{- $picked := false -}}
+      {{- range $k, $v := $a.Values -}}
+        {{- if not $picked -}}
+          {{- if not (and (eq $k "C") (eq (printf "%.0f" $v) "1")) -}}
+            {{- $val = printf "%.1f" $v -}}
+            {{- $picked = true -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if $val }}{{ $val }}%{{ else }}N/A{{ end -}}
+{{- end -}}
+{{- if and $a.Annotations $a.Annotations.threshold }} (임계치: {{ $a.Annotations.threshold }}%){{ end }}" }
+         }
+
+        ,{ "type": "section",
+           "text": { "type": "mrkdwn",
+             "text": ":clock1: *{{ $statusLabel }}* : {{- if eq $.Status "firing" -}}
+              {{- if $a.StartsAt -}}{{ printf "%.19s" $a.StartsAt }}{{- else -}}시간 정보 없음{{- end -}}
+            {{- else -}}
+              {{- if $a.EndsAt -}}{{ printf "%.19s" $a.EndsAt }}{{- else -}}시간 정보 없음{{- end -}}
+            {{- end -}}" }
+         }
+        {{- end -}}
+        {{- end -}}
+        {{- /* 9건 초과 안내 */ -}}
+        {{- if gt (len .Alerts) $max }}
+        ,{ "type": "context",
+           "elements": [
+             { "type": "mrkdwn",
+               "text": "…총 {{ len .Alerts }}건 중 {{ $max }}건만 표시" }
+           ]
+         }
+        {{- end }}
+      ]
+    }
+  ]
+}
+{{ end }}

@@ -1,0 +1,23 @@
+services:
+  pyroscope:
+    user: "0"
+    image: grafana/pyroscope:latest
+    container_name: ftt-pyroscope
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/pyroscope/config.yaml
+      - --target=all                 # 단일 바이너리
+    volumes:
+      - ./config/pyroscope-config.yaml:/etc/pyroscope/config.yaml:ro
+      - ./data:/data                 # 로컬 캐시·WAL
+    ports:
+      - "4040:4040"                  # HTTP UI / API
+      - "4041:4041"                  # gRPC
+    environment:
+      - TZ=Asia/Seoul                # 로그 타임존만 맞춤
+    networks:
+      - mimir-net                    # 기존 관측계 네트워크
+
+networks:
+  mimir-net:
+    external: true

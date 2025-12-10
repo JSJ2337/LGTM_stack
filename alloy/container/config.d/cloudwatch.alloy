@@ -1,0 +1,508 @@
+// ------------------------------------------------------------
+// CloudWatch → Prometheus (RDS)
+//   - 인스턴스 지표: rds_instance
+//   - 클러스터 지표: rds_cluster (Aurora / Multi-AZ DB Cluster가 있을 때만)
+// ------------------------------------------------------------
+
+// --- RDS Instance Metrics ---
+prometheus.exporter.cloudwatch "aws_rag_rds_instance" {
+  sts_region = "ap-southeast-1"
+
+  discovery {
+    type    = "AWS/RDS"
+    regions = ["ap-southeast-1"]
+    dimension_name_requirements = ["DBInstanceIdentifier"]
+
+    role {
+      role_arn = "arn:aws:iam::976193250298:role/ftt-lgtm-assumerole-rag"
+    }
+
+    metric {
+      name       = "CPUUtilization"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "DatabaseConnections"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "FreeableMemory"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "FreeStorageSpace"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "ReadIOPS"
+      statistics = ["Average", "Sum"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "WriteIOPS"
+      statistics = ["Average", "Sum"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "ReadLatency"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "WriteLatency"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "ReadThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "WriteThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "DiskQueueDepth"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "NetworkReceiveThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "NetworkTransmitThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "ReplicaLag"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "BurstBalance"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "SwapUsage"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+  }
+}
+
+// --- RDS Cluster Metrics ---
+prometheus.exporter.cloudwatch "aws_rag_rds_cluster" {
+  sts_region = "ap-southeast-1"
+
+  discovery {
+    type    = "AWS/RDS"
+    regions = ["ap-southeast-1"]
+    dimension_name_requirements = ["DBClusterIdentifier"]
+
+    role {
+      role_arn = "arn:aws:iam::976193250298:role/ftt-lgtm-assumerole-rag"
+    }
+
+    metric {
+      name       = "DatabaseConnections"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "CPUUtilization"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "CommitLatency"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "CommitThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "SelectLatency"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "SelectThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+  }
+}
+
+// --- RDS Cluster by Role (Aurora Writer/Reader) ---
+prometheus.exporter.cloudwatch "aws_rag_rds_cluster_by_role" {
+  sts_region = "ap-southeast-1"
+
+  discovery {
+    type    = "AWS/RDS"
+    regions = ["ap-southeast-1"]
+    dimension_name_requirements = ["DBClusterIdentifier", "Role"]
+
+    role {
+      role_arn = "arn:aws:iam::976193250298:role/ftt-lgtm-assumerole-rag"
+    }
+
+    metric {
+      name       = "DatabaseConnections"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "CPUUtilization"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "CommitLatency"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "CommitThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "SelectLatency"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+
+    metric {
+      name       = "SelectThroughput"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "3m"
+    }
+  }
+}
+
+
+// --- ALB Metrics ---
+prometheus.exporter.cloudwatch "aws_rag_alb" {
+  sts_region = "ap-southeast-1"
+  discovery {
+    type    = "AWS/ApplicationELB"
+    regions = ["ap-southeast-1"]
+
+    role {
+      role_arn    = "arn:aws:iam::976193250298:role/ftt-lgtm-assumerole-rag"
+    }
+    metric {
+      name       = "HTTPCode_Target_2XX_Count"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "HTTPCode_Target_3XX_Count"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "HTTPCode_Target_4XX_Count"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "HTTPCode_Target_5XX_Count"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "RequestCount"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "TargetResponseTime"
+      statistics = ["Average", "p95", "p99"]
+      period     = "60s"
+    }
+    metric {
+      name       = "TargetConnectionErrorCount"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "HealthyHostCount"
+      statistics = ["Average"]
+      period     = "60s"
+    }
+    metric {
+      name       = "UnHealthyHostCount"
+      statistics = ["Average"]
+      period     = "60s"
+    }
+    metric {
+      name       = "ReplicaLag"          // RDS 표준 Read Replica & MAZ DB Cluster
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "AuroraReplicaLag"    // Aurora 리더(리플리카) 지연
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "AuroraBinlogReplicaLag" // Aurora MySQL, binlog 복제 시
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+  }
+}
+
+// --- NLB Metrics ---
+prometheus.exporter.cloudwatch "aws_rag_nlb" {
+  sts_region = "ap-southeast-1"
+  discovery {
+    type    = "AWS/NetworkELB"
+    regions = ["ap-southeast-1"]
+
+    role {
+      role_arn    = "arn:aws:iam::976193250298:role/ftt-lgtm-assumerole-rag"
+    }
+    metric {
+      name       = "ActiveFlowCount"
+      statistics = ["Average"]
+      period     = "60s"
+    }
+    metric {
+      name       = "NewFlowCount"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "ProcessedBytes"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "ConsumedLCUs"
+      statistics = ["Average"]
+      period     = "60s"
+    }
+    metric {
+      name       = "TCP_Target_Reset_Count"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "Client_Reset_Count"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "TLSNegotiationErrorCount"
+      statistics = ["Sum"]
+      period     = "60s"
+    }
+    metric {
+      name       = "HealthyHostCount"
+      statistics = ["Average"]
+      period     = "60s"
+    }
+    metric {
+      name       = "UnHealthyHostCount"
+      statistics = ["Average"]
+      period     = "60s"
+    }
+  }
+}
+
+// --- ElastiCache Metrics ---
+prometheus.exporter.cloudwatch "aws_rag_elasticache_metrics" {
+  sts_region = "ap-southeast-1"
+
+  discovery {
+    type    = "AWS/ElastiCache"
+    regions = ["ap-southeast-1"]
+
+    dimension_name_requirements = ["CacheClusterId", "CacheNodeId"]
+
+    role {
+      role_arn = "arn:aws:iam::976193250298:role/ftt-lgtm-assumerole-rag"
+    }
+
+    // CPU
+    metric {
+      name       = "CPUUtilization"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "EngineCPUUtilization"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+
+    // 연결/네트워크
+    metric {
+      name       = "CurrConnections"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "NewConnections"
+      statistics = ["Sum"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "NetworkBytesIn"
+      statistics = ["Sum"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "NetworkBytesOut"
+      statistics = ["Sum"]
+      period     = "60s"
+      length     = "10m"
+    }
+
+    // 메모리/용량
+    metric {
+      name       = "FreeableMemory"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "BytesUsedForCache"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "DatabaseMemoryUsagePercentage"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+
+    
+    // 캐시 효율/드랍
+    metric {
+      name       = "CacheHitRate"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "Evictions"
+      statistics = ["Sum"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "Reclaimed"
+      statistics = ["Sum"]
+      period     = "60s"
+      length     = "10m"
+    }
+
+    // 복제 상태
+    metric {
+      name       = "ReplicationLag"
+      statistics = ["Average"]
+      period     = "60s"
+      length     = "10m"
+    }
+    metric {
+      name       = "ReplicationBytes"
+      statistics = ["Sum"]
+      period     = "60s"
+      length     = "10m"
+    }
+  }
+}
+
+// ------------------------------------------------------------
+// 2) Scrape & Remote Write to Mimir
+// ------------------------------------------------------------
+prometheus.scrape "aws_rag_metrics" {
+  targets = concat(
+    prometheus.exporter.cloudwatch.aws_rag_rds_instance.targets,
+    prometheus.exporter.cloudwatch.aws_rag_rds_cluster.targets,
+    prometheus.exporter.cloudwatch.aws_rag_rds_cluster_by_role.targets,
+    prometheus.exporter.cloudwatch.aws_rag_alb.targets,
+    prometheus.exporter.cloudwatch.aws_rag_nlb.targets,
+    prometheus.exporter.cloudwatch.aws_rag_elasticache_metrics.targets,
+  )
+  forward_to = [prometheus.remote_write.ftt_mimir.receiver]
+}
+

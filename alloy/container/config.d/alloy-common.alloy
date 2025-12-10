@@ -1,0 +1,21 @@
+// 전역 로깅: 전체에서 단 1회
+logging {
+  level  = "debug"
+  format = "logfmt"
+}
+
+// /etc/alloy/config.d/ftt-common.alloy (수정본)
+prometheus.remote_write "ftt_mimir" {
+  endpoint {
+    url = env("MIMIR_URL")
+
+    headers = {
+      "X-Scope-OrgID" = env("MIMIR_TENANT"),
+    }
+  }
+  wal {
+    truncate_frequency = "2h"
+    min_keepalive_time = "5m"
+    max_keepalive_time = "8h"
+  }
+}

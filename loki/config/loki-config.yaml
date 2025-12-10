@@ -1,0 +1,153 @@
+########################
+# Global / Server
+########################
+auth_enabled: true            # 멀티테넌트 활성
+
+server:
+  http_listen_port: 3100      # HTTP API 포트
+
+########################
+# Common (ring & dirs)
+########################
+common:
+  path_prefix: /ftt-loki
+  replication_factor: 1       # HA 미적용 환경에서는 1 유지
+  ring:
+    kvstore:
+      store: inmemory         # 단일 인스턴스 모드
+
+########################
+# Ingester  (WAL + 청크 튜닝)
+########################
+ingester:
+  wal:
+    enabled: true
+    dir: /loki/wal
+    checkpoint_duration: 5m
+    flush_on_shutdown: true
+  chunk_target_size: 1572864          # 1.5 MiB
+  chunk_encoding:    snappy
+  chunk_idle_period: 2h
+  max_chunk_age: 2h
+
+
+########################
+# Schema (TSDB + S3)
+########################
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+########################
+# Storage (Thanos client)
+########################
+storage_config:
+  use_thanos_objstore: true
+  object_store:
+    s3:
+      endpoint: s3.ap-northeast-2.amazonaws.com
+      bucket_name: ${LOKI_S3_BUCKET}
+      region: ${AWS_REGION}
+      bucket_lookup_type: path
+    storage_prefix: ftt-loki
+  tsdb_shipper:
+    active_index_directory: /ftt-loki/index
+    cache_location: /ftt-loki/index_cache
+    cache_ttl: 24h
+
+########################
+# Compactor & Limits
+########################
+compactor:
+  working_directory: /ftt-loki/compactor
+  compaction_interval: 5m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 150
+  delete_request_store: s3
+
+########################
+# Table Manager (보존 정책)
+########################
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 8760h     # 1년(365일) 보존
+
+limits_config:
+  ingestion_rate_mb: 25
+  max_global_streams_per_user: 20000
+  reject_old_samples: true
+  reject_old_samples_max_age: 8760h    # 1년
+  max_query_length: 8760h     # 90일
+  max_query_lookback: 8760h   # (선택) 조회 가능 과거 한도. 보존기간보다 크게 두면 안 됨
+  split_queries_by_interval: 24h   # 쿼리를 1일 단위로 쪼개 병렬 실행(예시)
+  query_timeout: 10m               # 쿼리 타임아웃 여유(예시)
+
+  retention_stream:
+    - selector: '{level="info"}'  # info만 따로 관리
+      priority: 10                # 숫자 클수록 우선순위 높음
+      period: 30d                  # info는 3일만 보관
+
+    - selector: '{level="unknown"}'
+      priority: 20
+      period: 3d
+
+    - selector: '{job=~".+", level!~".+"}'
+      priority: 19
+      period: 3d
+
+
+########################
+# Drilldown 필수 + 전역 한도
+########################
+  allow_structured_metadata: true      # Fields / Filters
+  volume_enabled:            true      # Volume
+  discover_log_levels:       true      # Log Levels
+
+########################
+# Pattern Ingester  ─ Patterns 탭
+########################
+pattern_ingester:
+  enabled: true
+
+########################
+# Query-range  결과 캐시 (외부 Memcached)
+########################
+query_range:
+  align_queries_with_step: true
+  cache_results: true
+  max_retries: 5
+
+  results_cache:
+    cache:
+      memcached_client:
+        addresses: ftt-mimir-memcache:11211
+        consistent_hash: true
+        max_idle_conns: 16
+        timeout: 500ms         # 네트워크 지연 허용치
+
+########################
+# Chunk 캐시  (외부 Memcached)
+########################
+chunk_store_config:
+  chunk_cache_config:
+    memcached:
+      batch_size: 50
+      parallelism: 4
+    memcached_client:
+      addresses: ftt-mimir-memcache:11211
+      consistent_hash: true
+      timeout: 500ms
+
+
+########################
+# Querier
+########################
+querier:
+  multi_tenant_queries_enabled: true  # 멀티 테넌트 쿼리 활성화

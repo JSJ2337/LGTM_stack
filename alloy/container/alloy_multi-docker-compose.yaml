@@ -1,0 +1,58 @@
+networks:
+  mimir-net:
+    external: true
+
+services:
+  ftt-alloy:
+    image: grafana/alloy:latest
+    container_name: ftt-alloy
+    user: "0:0"
+    command:
+      - run
+      - --stability.level=experimental
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy
+      - /etc/alloy/config.d/
+    ports:
+      - "12345:12345"
+      - "9080:9080"
+    volumes:
+      - ./config.d:/etc/alloy/config.d:ro
+      - ./alloy-data:/var/lib/alloy
+      - ./remote-config:/data/alloy-remote-config
+    environment:
+      CF_API_TOKEN: "REMOVED_CF_API_TOKEN"   # 직접 입력
+      CF_ZONE_ID_1: "REMOVED_CF_ZONE_ID"  # 필요시 블록 복제
+      # CF_ZONE_ID_2: "..."
+      # CF_ZONE_ID_3: "..."
+      LOKI_URL: "http://ftt-loki:3100/loki/api/v1/push"
+      LOKI_TENANT: "ftt-cloudflare"     # 단일테넌트면 비워도 됨
+      MIMIR_URL: "http://ftt-mimir:8080/api/v1/push"
+      MIMIR_TENANT: "ftt-lgtm-rds"    # 단일테넌트면 비워도 됨
+      CF_MIMIR_TENANT: "ftt-cloudflare"    # 단일테넌트면 비워도 됨
+    restart: unless-stopped
+    networks:
+      - mimir-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:12345/-/healthy >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cloudflare-exporter:
+    image: ghcr.io/lablabs/cloudflare_exporter:latest
+    container_name: ftt-cloudflare
+    environment:
+      CF_API_TOKEN: "REMOVED_CF_API_TOKEN"   # ftt-alloy와 동일 토큰 직접 입력
+      LISTEN: ":2112"
+      # CF_ZONES: "zoneid1,zoneid2"  # 특정 존만 수집 시(옵션)
+    ports:
+      - "2112:2112"
+    restart: unless-stopped
+    networks:
+      - mimir-net

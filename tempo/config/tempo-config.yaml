@@ -1,0 +1,71 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3200
+
+multitenancy_enabled: true               # 테넌트 분리
+
+###############################################################################
+# 1. OTLP 수신
+###############################################################################
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc: { endpoint: 0.0.0.0:4317 }
+        http: { endpoint: 0.0.0.0:4318 }
+
+###############################################################################
+# 2. Ingester
+###############################################################################
+ingester:
+  trace_idle_period: 30s
+  max_block_duration: 10m
+  max_block_bytes: 268435456             # 256 MB
+
+###############################################################################
+# 3. Compactor – 보존 7 일
+###############################################################################
+compactor:
+  compaction:
+    block_retention: 168h                # 7 d
+
+###############################################################################
+# 4. S3 스토리지
+###############################################################################
+storage:
+  trace:
+    backend: s3
+    s3:
+      bucket: sys-lgtm-s3
+      region: ap-northeast-2
+      endpoint: s3.northeast-2.amazonaws.com
+      prefix: ftt-tempo/
+      storage_class: STANDARD_IA
+
+###############################################################################
+# 5. Metrics-generator  (span-metrics & service-graphs)
+###############################################################################
+metrics_generator:
+  storage:
+    path: /var/tempo/generator-wal      # WAL 경로
+    remote_write:                      # ← storage 안으로 한 단계 들여쓰기
+      - url: http://10.130.30.62:9009/api/v1/push
+        send_exemplars: true
+
+###############################################################################
+# 6. overrides – 프로세서 켜기
+###############################################################################
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [span-metrics, service-graphs]
+
+###############################################################################
+# 7. 쿼리 동시성
+###############################################################################
+query_frontend:
+  max_outstanding_per_tenant: 64
+
+querier:
+  max_concurrent_queries: 16
