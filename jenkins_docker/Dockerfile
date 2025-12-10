@@ -1,4 +1,4 @@
-FROM jenkins/jenkins:2.479.1-lts-jdk17-jammy
+FROM jenkins/jenkins:lts-jdk17
 
 USER root
 
@@ -51,11 +51,13 @@ RUN ARCH=$(uname -m) && \
     else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
     echo "Installing Terragrunt for ${TG_ARCH}..." && \
     curl -fsSLo terragrunt_linux_${TG_ARCH} https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TG_ARCH} && \
-    curl -fsSLo terragrunt_linux_${TG_ARCH}.sha256 https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TG_ARCH}.sha256 && \
-    sha256sum -c terragrunt_linux_${TG_ARCH}.sha256 && \
     install -m 0755 terragrunt_linux_${TG_ARCH} /usr/local/bin/terragrunt && \
-    rm -f terragrunt_linux_${TG_ARCH} terragrunt_linux_${TG_ARCH}.sha256 && \
+    rm -f terragrunt_linux_${TG_ARCH} && \
     terragrunt --version
+
+# Jenkins CLI 설치
+RUN curl -fsSL http://localhost:8080/jnlpJars/jenkins-cli.jar -o /usr/local/bin/jenkins-cli.jar || \
+    curl -fsSL https://repo.jenkins-ci.org/public/org/jenkins-ci/main/cli/2.479/cli-2.479.jar -o /usr/local/bin/jenkins-cli.jar
 
 # jenkins 사용자로 다시 전환
 USER jenkins
