@@ -21,6 +21,14 @@ LGTM_PRD/
 ├── pyroscope/              # 프로파일링
 ├── grafana/                # 시각화 대시보드
 ├── aleart/                 # 알림 설정
+├── jenkins_docker/         # Jenkins CI/CD 환경
+│   ├── Dockerfile          # Jenkins + Terraform + Terragrunt + gcloud
+│   ├── jsj_jenkins.yaml    # Jenkins 컨테이너 설정
+│   ├── jsj_ngrok.yaml      # ngrok 외부 접속 설정
+│   └── README.md           # Jenkins 설정 가이드
+├── ecs-migration/          # ECS Fargate 마이그레이션 문서
+│   ├── README.md           # 마이그레이션 개요
+│   └── docs/               # 상세 문서 (architecture, plan, troubleshooting)
 └── *.json                  # Grafana 대시보드 JSON
 ```
 
@@ -102,3 +110,62 @@ bash alloy/agent/alloy-config_rocky86_offline_v2.2.sh
 ## Storage Backend
 
 모든 백엔드는 S3 버킷 `rag-mimir-pos-s3`에 장기 보관.
+
+## Jenkins CI/CD
+
+### Jenkins 실행 (로컬)
+
+```bash
+cd jenkins_docker
+docker-compose -f jsj_jenkins.yaml up -d --build
+```
+
+- 접속: <http://localhost:8080>
+- 초기 비밀번호: `docker exec jsj-jenkins-server cat /var/jenkins_home/secrets/initialAdminPassword`
+
+### Jenkins + ngrok (외부 접속)
+
+```bash
+cd jenkins_docker
+
+# 1. .env 파일 생성 및 NGROK_AUTHTOKEN 설정
+cp .env.example .env
+
+# 2. Jenkins 실행
+docker-compose -f jsj_jenkins.yaml up -d --build
+
+# 3. ngrok 실행
+docker-compose -f jsj_ngrok.yaml up -d
+
+# 4. ngrok URL 확인
+docker logs jsj-jenkins-ngrok | grep "started tunnel"
+```
+
+**설치된 도구**:
+
+- Jenkins LTS (latest with JDK 17)
+- Terraform 1.13.5 (Multi-arch: ARM64/AMD64)
+- Terragrunt 0.93.3 (Multi-arch: ARM64/AMD64)
+- Google Cloud SDK (gcloud)
+- Jenkins CLI
+- Git, Python 3
+
+**Jenkins CLI 사용**:
+```bash
+docker exec jsj-jenkins-server java -jar /usr/local/bin/jenkins-cli.jar -s http://localhost:8080/ -auth admin:PASSWORD help
+```
+
+**Jenkins REST API**:
+
+- Base URL: <http://localhost:8080> 또는 ngrok URL
+- Authentication: API Token (User → Configure → API Token)
+- Example: `curl -u username:token http://localhost:8080/api/json`
+
+## ECS Fargate Migration
+
+ECS Fargate로 마이그레이션 문서는 `ecs-migration/` 폴더 참조:
+
+- [README.md](ecs-migration/README.md): 프로젝트 개요 및 빠른 시작
+- [docs/architecture.md](ecs-migration/docs/architecture.md): 상세 아키텍처
+- [docs/migration-plan.md](ecs-migration/docs/migration-plan.md): 14일 마이그레이션 계획
+- [docs/troubleshooting.md](ecs-migration/docs/troubleshooting.md): 트러블슈팅 가이드

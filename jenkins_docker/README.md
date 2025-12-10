@@ -121,12 +121,14 @@ Terragrunt 자동화 Pipeline 사용 방법:
 - 포트: 8080 (웹 UI), 50000 (에이전트)
 
 **설치된 도구**:
-- Jenkins LTS
-- Terraform 1.13.5
-- Terragrunt 0.93.3
-- Git 2.47.3
-- Google Cloud SDK (gcloud 547.0.0)
-- Python 3.11
+
+- Jenkins LTS (latest with JDK 17)
+- Terraform 1.13.5 (Multi-arch: ARM64/AMD64)
+- Terragrunt 0.93.3 (Multi-arch: ARM64/AMD64)
+- Git (latest)
+- Google Cloud SDK (gcloud)
+- Python 3
+- Jenkins CLI (jenkins-cli.jar)
 
 **실행**:
 ```bash
@@ -437,7 +439,8 @@ docker network inspect jenkins_default
 
 ---
 
-**마지막 업데이트**: 2025-11-05
-**Jenkins LTS 버전**: 2.528.1
-**Terraform 버전**: 1.13.5
-**Terragrunt 버전**: 0.93.3
+**마지막 업데이트**: 2025-12-10
+**Jenkins 베이스 이미지**: jenkins/jenkins:lts-jdk17
+**Terraform 버전**: 1.13.5 (Multi-arch)
+**Terragrunt 버전**: 0.93.3 (Multi-arch)
+**지원 아키텍처**: AMD64, ARM64 (Apple Silicon)
