@@ -139,7 +139,7 @@ timeout(time: 30, unit: 'MINUTES')
    <https://your-ngrok-url.ngrok-free.app>
    ```
 
-1. **jsj-terraform-pipeline** Job 클릭
+2. **jsj-terraform-pipeline** Job 클릭
 
 2. **Build with Parameters** 클릭
 
@@ -217,7 +217,7 @@ timeout(time: 30, unit: 'MINUTES')
    TARGET_LAYER: all (또는 특정 레이어)
    ```
 
-1. **Build** 클릭
+3. **Build** 클릭
 2. Console Output에서 Plan 결과 확인
 3. **자동 완료** (승인 불필요)
 
@@ -242,14 +242,14 @@ timeout(time: 30, unit: 'MINUTES')
    TARGET_LAYER: 10-network
    ```
 
-1. **Plan 결과 확인 후 Apply:**
+2. **Plan 결과 확인 후 Apply:**
 
    ```text
    ACTION: apply
    TARGET_LAYER: 10-network
    ```
 
-1. **승인 대기:**
+3. **승인 대기:**
 
 - Pipeline이 멈춤
 - 승인 메시지 표시:
@@ -265,9 +265,9 @@ timeout(time: 30, unit: 'MINUTES')
      위 Plan을 검토한 후 승인하시겠습니까?
 
      [ ✅ 승인 (Apply 실행) ]
-```
+     ```
 
-1. **승인 클릭**
+4. **승인 클릭**
 2. Apply 실행 및 완료 확인
 
 #### 결과 (2)
@@ -290,14 +290,14 @@ timeout(time: 30, unit: 'MINUTES')
    TARGET_LAYER: all
    ```
 
-1. **전체 Apply:**
+2. **전체 Apply:**
 
    ```text
    ACTION: apply
    TARGET_LAYER: all
    ```
 
-1. **승인:**
+3. **승인:**
 
 - 전체 스택에 대한 변경사항 확인
 - ⚠️ **매우 신중하게 검토!**
@@ -584,7 +584,7 @@ terragrunt destroy -auto-approve
    plan → 결과 확인 → apply
    ```
 
-1. **개별 레이어 수정**
+2. **개별 레이어 수정**
 
 - 변경이 필요한 레이어만 선택
 - 영향 범위 최소화

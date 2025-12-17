@@ -185,7 +185,7 @@ Email address: [이메일 주소]
       - 가독성 향상
    ```
 
-1. 체크박스 선택 후 **Install without restart** 또는 **Install** 클릭
+3. 체크박스 선택 후 **Install without restart** 또는 **Install** 클릭
 
 ### 기타 유용한 플러그인
 
