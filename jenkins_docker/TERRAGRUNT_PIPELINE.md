@@ -139,27 +139,26 @@ timeout(time: 30, unit: 'MINUTES')
    <https://your-ngrok-url.ngrok-free.app>
    ```
 
-2. **jsj-terraform-pipeline** Job 클릭
+1. **jsj-terraform-pipeline** Job 클릭
 
 2. **Build with Parameters** 클릭
 
 3. **파라미터 선택**
 
-- ACTION: `plan`, `apply`, 또는 `destroy`
-- TARGET_LAYER: 실행할 레이어 선택
+   - ACTION: `plan`, `apply`, 또는 `destroy`
+   - TARGET_LAYER: 실행할 레이어 선택
 
-1. **Build** 버튼 클릭
+4. **Build** 버튼 클릭
 
-2. **진행 상황 모니터링**
+5. **진행 상황 모니터링**
 
-- Build History에서 진행 중인 빌드 클릭
-- Console Output에서 실시간 로그 확인
+   - Build History에서 진행 중인 빌드 클릭
+   - Console Output에서 실시간 로그 확인
+6. **승인 (apply/destroy 시)**
 
-1. **승인 (apply/destroy 시)**
-
-- Plan 결과 확인
-- 승인 버튼 클릭
-- Apply 실행 확인
+   - Plan 결과 확인
+   - 승인 버튼 클릭
+   - Apply 실행 확인
 
 ---
 
@@ -218,8 +217,8 @@ timeout(time: 30, unit: 'MINUTES')
    ```
 
 3. **Build** 클릭
-2. Console Output에서 Plan 결과 확인
-3. **자동 완료** (승인 불필요)
+4. Console Output에서 Plan 결과 확인
+5. **자동 완료** (승인 불필요)
 
 #### 결과
 
@@ -251,8 +250,8 @@ timeout(time: 30, unit: 'MINUTES')
 
 3. **승인 대기:**
 
-- Pipeline이 멈춤
-- 승인 메시지 표시:
+   - Pipeline이 멈춤
+   - 승인 메시지 표시:
 
      ```text
      ⚠️  인프라 변경 승인 필요 ⚠️
@@ -268,7 +267,7 @@ timeout(time: 30, unit: 'MINUTES')
      ```
 
 4. **승인 클릭**
-2. Apply 실행 및 완료 확인
+5. Apply 실행 및 완료 확인
 
 #### 결과 (2)
 
