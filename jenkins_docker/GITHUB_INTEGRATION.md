@@ -72,7 +72,7 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
    - 90 days
    - Custom
    - No expiration (권장하지 않음)
-```
+   ```
 
 3. **권한 선택 (Scopes):**
 
@@ -87,7 +87,7 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
    ✅ admin:repo_hook (전체 체크)
       ✅ write:repo_hook
       ✅ read:repo_hook
-```
+   ```
 
 4. 페이지 맨 아래 **Generate token** 클릭
 
@@ -208,7 +208,7 @@ Credentials: github-pat
    Credentials verified for user [사용자명], rate limit: xxxxx
 ```
 
-3. 에러 발생 시 Credential과 토큰 권한 확인
+1. 에러 발생 시 Credential과 토큰 권한 확인
 
 ### 3-5. 저장
 
@@ -232,7 +232,7 @@ GitHub 리포지토리와 연결된 Pipeline을 만듭니다.
    선택: Pipeline
 ```
 
-3. **OK** 클릭
+1. **OK** 클릭
 
 ### 4-2. General 섹션
 
@@ -341,14 +341,14 @@ curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
    예: <https://github.com/JSJ2337/JSJ_engineering_Diary>
 ```
 
-2. 상단 탭에서 **Settings** 클릭
+1. 상단 탭에서 **Settings** 클릭
 
    ```text
    Code | Issues | Pull requests | Actions | Projects | Wiki | Settings
                                                                   ↑ 여기!
 ```
 
-3. 왼쪽 메뉴에서 **Webhooks** 클릭
+1. 왼쪽 메뉴에서 **Webhooks** 클릭
 
    ```text
    Code and automation
@@ -382,19 +382,19 @@ curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
    (기본값 - ngrok은 유효한 SSL 인증서 사용)
 ```
 
-3. **Which events would you like to trigger this webhook?**
+1. **Which events would you like to trigger this webhook?**
 
    ```text
    ◉ Just the push event
 ```
 
-4. **Active 확인:**
+1. **Active 확인:**
 
    ```text
    ☑ Active
 ```
 
-5. **Add webhook** 버튼 클릭 (페이지 하단)
+1. **Add webhook** 버튼 클릭 (페이지 하단)
 
 ### 5-4. Webhook 상태 확인
 
@@ -434,13 +434,13 @@ Webhook 목록 페이지로 이동하면:
    git push origin main
 ```
 
-2. **Jenkins 확인:**
+1. **Jenkins 확인:**
 
 - Jenkins 대시보드로 이동
 - Pipeline Job이 자동으로 실행되는지 확인
 - Build History에서 #2, #3... 번호 증가 확인
 
-3. **빌드 로그 확인:**
+1. **빌드 로그 확인:**
 
 - 빌드 번호 클릭 → **Console Output**
 - "Started by GitHub push by [사용자명]" 메시지 확인
@@ -504,19 +504,19 @@ Authentication failed
    ❌ <<http://localhost:8080>/github-webhook/>  (로컬 URL)
 ```
 
-2. **ngrok 실행 상태:**
+1. **ngrok 실행 상태:**
 
    ```bash
    docker ps | grep ngrok
    curl <<http://localhost:4040>/api/tunnels>
 ```
 
-3. **Jenkins 설정:**
+1. **Jenkins 설정:**
 
 - Pipeline Job → Configure
 - "GitHub hook trigger for GITScm polling" 체크 확인
 
-4. **GitHub Webhook Recent Deliveries:**
+1. **GitHub Webhook Recent Deliveries:**
 
 - 200 응답: Jenkins 문제
 - 4xx/5xx 응답: 네트워크/URL 문제
@@ -582,13 +582,13 @@ docker-compose -f jsj_ngrok.yaml restart
    openssl rand -hex 20
 ```
 
-2. **GitHub Webhook 설정:**
+1. **GitHub Webhook 설정:**
 
    ```text
    Secret: [생성된 secret]
 ```
 
-3. **Jenkins에서 검증 설정**
+1. **Jenkins에서 검증 설정**
 
 - Manage Jenkins → System → GitHub
 - Override Hook URL 설정

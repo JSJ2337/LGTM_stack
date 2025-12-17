@@ -137,25 +137,25 @@ timeout(time: 30, unit: 'MINUTES')
    <<http://localhost:8080>>
    또는
    <https://your-ngrok-url.ngrok-free.app>
-```
+   ```
 
-2. **jsj-terraform-pipeline** Job 클릭
+1. **jsj-terraform-pipeline** Job 클릭
 
-3. **Build with Parameters** 클릭
+2. **Build with Parameters** 클릭
 
-4. **파라미터 선택**
+3. **파라미터 선택**
 
 - ACTION: `plan`, `apply`, 또는 `destroy`
 - TARGET_LAYER: 실행할 레이어 선택
 
-5. **Build** 버튼 클릭
+1. **Build** 버튼 클릭
 
-6. **진행 상황 모니터링**
+2. **진행 상황 모니터링**
 
 - Build History에서 진행 중인 빌드 클릭
 - Console Output에서 실시간 로그 확인
 
-7. **승인 (apply/destroy 시)**
+1. **승인 (apply/destroy 시)**
 
 - Plan 결과 확인
 - 승인 버튼 클릭
@@ -215,11 +215,11 @@ timeout(time: 30, unit: 'MINUTES')
    ```text
    ACTION: plan
    TARGET_LAYER: all (또는 특정 레이어)
-```
+   ```
 
-3. **Build** 클릭
-4. Console Output에서 Plan 결과 확인
-5. **자동 완료** (승인 불필요)
+1. **Build** 클릭
+2. Console Output에서 Plan 결과 확인
+3. **자동 완료** (승인 불필요)
 
 #### 결과
 
@@ -240,16 +240,16 @@ timeout(time: 30, unit: 'MINUTES')
    ```text
    ACTION: plan
    TARGET_LAYER: 10-network
-```
+   ```
 
-2. **Plan 결과 확인 후 Apply:**
+1. **Plan 결과 확인 후 Apply:**
 
    ```text
    ACTION: apply
    TARGET_LAYER: 10-network
-```
+   ```
 
-3. **승인 대기:**
+1. **승인 대기:**
 
 - Pipeline이 멈춤
 - 승인 메시지 표시:
@@ -267,8 +267,8 @@ timeout(time: 30, unit: 'MINUTES')
      [ ✅ 승인 (Apply 실행) ]
 ```
 
-4. **승인 클릭**
-5. Apply 실행 및 완료 확인
+1. **승인 클릭**
+2. Apply 실행 및 완료 확인
 
 #### 결과 (2)
 
@@ -288,26 +288,26 @@ timeout(time: 30, unit: 'MINUTES')
    ```text
    ACTION: plan
    TARGET_LAYER: all
-```
+   ```
 
-2. **전체 Apply:**
+1. **전체 Apply:**
 
    ```text
    ACTION: apply
    TARGET_LAYER: all
-```
+   ```
 
-3. **승인:**
+1. **승인:**
 
 - 전체 스택에 대한 변경사항 확인
 - ⚠️ **매우 신중하게 검토!**
 - 승인 클릭
 
-4. **의존성 순서대로 실행:**
+1. **의존성 순서대로 실행:**
 
    ```text
    00-project → 10-network → 20-storage → ...
-```
+   ```
 
 #### 소요 시간
 
@@ -497,7 +497,7 @@ gcloud iam service-accounts keys create jenkins-sa-key.json \
    File: jenkins-sa-key.json 업로드
    ID: gcp-service-account
    Description: GCP Service Account for Terraform
-```
+   ```
 
 #### 3. Jenkinsfile 수정
 
@@ -582,29 +582,29 @@ terragrunt destroy -auto-approve
 
    ```text
    plan → 결과 확인 → apply
-```
+   ```
 
-2. **개별 레이어 수정**
+1. **개별 레이어 수정**
 
 - 변경이 필요한 레이어만 선택
 - 영향 범위 최소화
 
-3. **승인 전 철저히 확인**
+1. **승인 전 철저히 확인**
 
 - Plan 출력 전체 읽기
 - 예상치 못한 변경 확인
 - 삭제되는 리소스 확인
 
-4. **테스트 환경 먼저**
+1. **테스트 환경 먼저**
 
 - QA 환경에서 먼저 테스트
 - 문제 없으면 LIVE 배포
 
-5. **커밋 메시지 명확히**
+1. **커밋 메시지 명확히**
 
    ```bash
    git commit -m "feat(network): add new subnet for web servers"
-```
+   ```
 
 ### ❌ DON'T (금지)
 
@@ -612,17 +612,17 @@ terragrunt destroy -auto-approve
 
 - 예상치 못한 변경 위험
 
-2. **전체 스택 Destroy 금지**
+1. **전체 스택 Destroy 금지**
 
 - 특별한 경우 아니면 사용 금지
 - 모든 인프라가 삭제됨
 
-3. **승인 없이 넘어가지 마세요**
+1. **승인 없이 넘어가지 마세요**
 
 - 반드시 Plan 확인
 - 타임아웃 전에 승인
 
-4. **동시에 여러 레이어 수정 금지**
+1. **동시에 여러 레이어 수정 금지**
 
 - 문제 발생 시 원인 파악 어려움
 - 한 번에 하나씩

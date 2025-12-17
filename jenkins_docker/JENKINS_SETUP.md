@@ -183,9 +183,9 @@ Email address: [이메일 주소]
    ✅ AnsiColor
       - Terraform 출력에 컬러 추가
       - 가독성 향상
-```
+   ```
 
-3. 체크박스 선택 후 **Install without restart** 또는 **Install** 클릭
+1. 체크박스 선택 후 **Install without restart** 또는 **Install** 클릭
 
 ### 기타 유용한 플러그인
 
