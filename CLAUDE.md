@@ -10,6 +10,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Markdown 작성 규칙**: 모든 Markdown 문서는 markdownlint 규칙을 준수해야 합니다. 일관된 문서 품질을 유지합니다.
 
+### Markdownlint 설정
+
+`.markdownlint.json` 파일에서 일부 규칙을 비활성화했습니다:
+
+- **MD013**: 줄 길이 제한 비활성화 (긴 URL, 명령어 등)
+- **MD033**: 인라인 HTML 허용 (이미지 크기 조정 등)
+- **MD051**: 링크 fragment 검증 비활성화 (TOC 링크)
+- **MD029**: Ordered list 번호 스타일 비활성화 (들여쓰기된 unordered list를 하위 항목으로 사용 시 오탐 발생)
+- **MD060**: 테이블 컬럼 스타일 비활성화 (컴팩트 스타일 허용)
+
+### Git 워크플로우
+
+- **브랜치**: `lgtm_prd` (기본 브랜치: `main`)
+- **커밋 메시지**: 한글 사용
+- **커밋 규칙**: `type: 간단한 설명` 형식 (예: `docs: 문서 업데이트`, `feat: 새 기능 추가`)
+
 ## Repository Overview
 
 Grafana LGTM (Loki, Grafana, Tempo, Mimir) 스택 **운영 환경** 설정. 코드 수정은 이 저장소에서 진행.
@@ -33,10 +49,16 @@ LGTM_PRD/
 │   ├── Dockerfile          # Jenkins + Terraform + Terragrunt + gcloud
 │   ├── jsj_jenkins.yaml    # Jenkins 컨테이너 설정
 │   ├── jsj_ngrok.yaml      # ngrok 외부 접속 설정
-│   └── README.md           # Jenkins 설정 가이드
+│   ├── README.md           # Jenkins 설정 가이드
+│   ├── GITHUB_INTEGRATION.md  # GitHub 연동 가이드
+│   ├── JENKINS_SETUP.md    # Jenkins 초기 설정 가이드
+│   └── TERRAGRUNT_PIPELINE.md # Terragrunt 파이프라인 가이드
 ├── ecs-migration/          # ECS Fargate 마이그레이션 문서
 │   ├── README.md           # 마이그레이션 개요
-│   └── docs/               # 상세 문서 (architecture, plan, troubleshooting)
+│   └── docs/               # 상세 문서
+│       ├── architecture.md # 아키텍처 설계
+│       ├── migration-plan.md # 마이그레이션 계획
+│       └── troubleshooting.md # 트러블슈팅 가이드
 └── *.json                  # Grafana 대시보드 JSON
 ```
 
