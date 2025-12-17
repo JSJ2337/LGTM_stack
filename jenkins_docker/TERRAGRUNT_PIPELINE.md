@@ -140,16 +140,12 @@ timeout(time: 30, unit: 'MINUTES')
    ```
 
 1. **jsj-terraform-pipeline** Job 클릭
-
 2. **Build with Parameters** 클릭
-
 3. **파라미터 선택**
 
    - ACTION: `plan`, `apply`, 또는 `destroy`
    - TARGET_LAYER: 실행할 레이어 선택
-
 4. **Build** 버튼 클릭
-
 5. **진행 상황 모니터링**
 
    - Build History에서 진행 중인 빌드 클릭
