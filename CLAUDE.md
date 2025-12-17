@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code Guidelines
+
+**재사용성을 최우선으로 고려**: 모든 코드는 재사용 가능하도록 작성해야 합니다. 하드코딩을 지양하고, 설정 파일이나 환경 변수를 활용하며, 모듈화된 구조를 유지합니다.
+
+**문서 동기화 필수**: 코드 수정, 업데이트, 추가 등 코드 관련 작업이나 정보가 변경되면 반드시 `docs/` 폴더 내의 관련 문서도 함께 업데이트해야 합니다. 코드와 문서의 불일치를 방지합니다.
+
+**Markdown 작성 규칙**: 모든 Markdown 문서는 markdownlint 규칙을 준수해야 합니다. 일관된 문서 품질을 유지합니다.
+
 ## Repository Overview
 
 Grafana LGTM (Loki, Grafana, Tempo, Mimir) 스택 **운영 환경** 설정. 코드 수정은 이 저장소에서 진행.
@@ -10,7 +18,7 @@ Grafana LGTM (Loki, Grafana, Tempo, Mimir) 스택 **운영 환경** 설정. 코�
 
 ## Project Structure
 
-```
+```text
 LGTM_PRD/
 ├── alloy/                  # Grafana Alloy (데이터 수집)
 │   ├── agent/              # EC2 Agent 설치 스크립트
@@ -37,22 +45,29 @@ LGTM_PRD/
 ### 컴포넌트별 실행
 
 ```bash
+
 # Mimir (메트릭)
+
 docker-compose -f mimir/mimir_docker-compose.yaml up -d
 
 # Loki (로그)
+
 docker-compose -f loki/loki_docker-compose.yaml up -d
 
 # Tempo (트레이스)
+
 docker-compose -f tempo/tempo-docker-compose.yaml up -d
 
 # Pyroscope (프로파일링)
+
 docker-compose -f pyroscope/pyroscope-docker-compose.yaml up -d
 
 # Grafana (UI)
+
 docker-compose -f grafana/grafana-docker-compose.yaml up -d
 
 # Alloy Collector
+
 docker-compose -f alloy/container/alloy_multi-docker-compose.yaml up -d
 ```
 
@@ -64,7 +79,7 @@ docker-compose -f <component>/<compose-file>.yaml logs -f
 
 ## Architecture
 
-```
+```text
                     Grafana (시각화)
                     ↑   ↑   ↑   ↑
           ┌─────────┘   │   │   └─────────┐
@@ -85,16 +100,19 @@ docker-compose -f <component>/<compose-file>.yaml logs -f
 ## Alloy Agent 설치
 
 ### Linux (Amazon Linux 2023)
+
 ```bash
 bash alloy/agent/alloy-config_ec2_amz23_only_v5.4.sh
 ```
 
 ### Windows
+
 ```powershell
 .\alloy\agent\alloy-config_ec2_win_only_v9.2.ps1
 ```
 
 ### Rocky Linux (IDC/오프라인)
+
 ```bash
 bash alloy/agent/alloy-config_rocky86_offline_v2.2.sh
 ```
@@ -129,15 +147,19 @@ docker-compose -f jsj_jenkins.yaml up -d --build
 cd jenkins_docker
 
 # 1. .env 파일 생성 및 NGROK_AUTHTOKEN 설정
+
 cp .env.example .env
 
 # 2. Jenkins 실행
+
 docker-compose -f jsj_jenkins.yaml up -d --build
 
 # 3. ngrok 실행
+
 docker-compose -f jsj_ngrok.yaml up -d
 
 # 4. ngrok URL 확인
+
 docker logs jsj-jenkins-ngrok | grep "started tunnel"
 ```
 
@@ -151,6 +173,7 @@ docker logs jsj-jenkins-ngrok | grep "started tunnel"
 - Git, Python 3
 
 **Jenkins CLI 사용**:
+
 ```bash
 docker exec jsj-jenkins-server java -jar /usr/local/bin/jenkins-cli.jar -s http://localhost:8080/ -auth admin:PASSWORD help
 ```

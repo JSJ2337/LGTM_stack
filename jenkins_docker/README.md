@@ -162,6 +162,7 @@ docker-compose -f jsj_jenkins.yaml up -d
 - Jenkins와 독립적으로 시작/중지 가능
 
 **사전 준비**:
+
 1. [ngrok.com](https://ngrok.com) 가입
 2. Authtoken 발급 ([대시보드](https://dashboard.ngrok.com/get-started/your-authtoken))
 3. `.env` 파일 생성 및 `NGROK_AUTHTOKEN` 설정

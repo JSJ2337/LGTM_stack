@@ -53,14 +53,14 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
 
 ### 1-2. Developer settings 이동
 
-4. 왼쪽 메뉴 맨 아래 **Developer settings** 클릭
-5. **Personal access tokens** → **Tokens (classic)** 클릭
+1. 왼쪽 메뉴 맨 아래 **Developer settings** 클릭
+2. **Personal access tokens** → **Tokens (classic)** 클릭
 
 ### 1-3. 새 토큰 생성
 
-6. **Generate new token** → **Generate new token (classic)** 선택
+1. **Generate new token** → **Generate new token (classic)** 선택
 
-7. **토큰 설정:**
+2. **토큰 설정:**
 
    ```text
    Note: Jenkins Token
@@ -74,7 +74,7 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
    - No expiration (권장하지 않음)
 ```
 
-8. **권한 선택 (Scopes):**
+3. **권한 선택 (Scopes):**
 
    ```text
    ✅ repo (전체 체크)
@@ -89,7 +89,7 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
       ✅ read:repo_hook
 ```
 
-9. 페이지 맨 아래 **Generate token** 클릭
+4. 페이지 맨 아래 **Generate token** 클릭
 
 ### 1-4. 토큰 복사 및 저장
 
@@ -180,8 +180,8 @@ Jenkins와 GitHub API를 연결합니다.
 
 ### 3-2. GitHub Server 추가
 
-3. **Add GitHub Server** 버튼 클릭
-4. **GitHub Server** 선택
+1. **Add GitHub Server** 버튼 클릭
+2. **GitHub Server** 선택
 
 ### 3-3. 설정 입력
 
@@ -201,14 +201,14 @@ Credentials: github-pat
 
 ### 3-4. 연결 테스트
 
-5. **Test connection** 버튼 클릭
-6. 성공 메시지 확인:
+1. **Test connection** 버튼 클릭
+2. 성공 메시지 확인:
 
    ```text
    Credentials verified for user [사용자명], rate limit: xxxxx
 ```
 
-7. 에러 발생 시 Credential과 토큰 권한 확인
+3. 에러 발생 시 Credential과 토큰 권한 확인
 
 ### 3-5. 저장
 
@@ -361,9 +361,9 @@ curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
 
 ### 5-3. Webhook 추가
 
-4. **Add webhook** 버튼 클릭 (초록색)
+1. **Add webhook** 버튼 클릭 (초록색)
 
-5. **Webhook 설정 입력:**
+2. **Webhook 설정 입력:**
 
    ```text
    Payload URL: <https://[ngrok-url]/github-webhook/>
@@ -382,19 +382,19 @@ curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
    (기본값 - ngrok은 유효한 SSL 인증서 사용)
 ```
 
-6. **Which events would you like to trigger this webhook?**
+3. **Which events would you like to trigger this webhook?**
 
    ```text
    ◉ Just the push event
 ```
 
-7. **Active 확인:**
+4. **Active 확인:**
 
    ```text
    ☑ Active
 ```
 
-8. **Add webhook** 버튼 클릭 (페이지 하단)
+5. **Add webhook** 버튼 클릭 (페이지 하단)
 
 ### 5-4. Webhook 상태 확인
 
@@ -486,9 +486,9 @@ Authentication failed
 
 #### 해결 (2)
 
-4. Credential에 사용한 토큰 권한 확인 (`repo` 권한 필요)
-5. Repository URL이 `.git`으로 끝나는지 확인
-6. Private 리포지토리인 경우 토큰 권한 재확인
+1. Credential에 사용한 토큰 권한 확인 (`repo` 권한 필요)
+2. Repository URL이 `.git`으로 끝나는지 확인
+3. Private 리포지토리인 경우 토큰 권한 재확인
 
 ### Webhook이 작동하지 않음
 

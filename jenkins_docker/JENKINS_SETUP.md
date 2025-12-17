@@ -81,6 +81,7 @@ cat jenkins-data/jenkins_home/secrets/initialAdminPassword
 - 기타 필수 플러그인 다수
 
 **선택 방법:**
+
 1. "Install suggested plugins" 버튼 클릭
 2. 플러그인 설치 완료 대기 (5-10분)
 3. 일부 실패해도 괜찮음 (나중에 재설치 가능)
