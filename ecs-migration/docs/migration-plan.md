@@ -15,8 +15,11 @@
 ### 1.1 AWS 리소스 사전 준비
 
 **ECR 리포지토리 생성:**
+
 ```bash
+
 #!/bin/bash
+
 REGION="ap-northeast-2"
 REPOS=("lgtm-mimir" "lgtm-loki" "lgtm-tempo" "lgtm-pyroscope" "lgtm-grafana" "lgtm-alloy")
 
@@ -29,8 +32,11 @@ done
 ```
 
 **IAM Role 생성:**
+
 ```bash
+
 # Task Execution Role
+
 aws iam create-role \
   --role-name ecsTaskExecutionRole \
   --assume-role-policy-document file://trust-policy.json
@@ -40,6 +46,7 @@ aws iam attach-role-policy \
   --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
 # Task Role (S3 Access)
+
 aws iam create-role \
   --role-name lgtmTaskRole \
   --assume-role-policy-document file://trust-policy.json
@@ -51,6 +58,7 @@ aws iam put-role-policy \
 ```
 
 **S3 버킷 권한 확인:**
+
 ```bash
 aws s3api get-bucket-policy --bucket sys-lgtm-s3
 ```
@@ -58,21 +66,27 @@ aws s3api get-bucket-policy --bucket sys-lgtm-s3
 ### 1.2 네트워크 리소스 확인
 
 **VPC, Subnet, Security Group 확인:**
+
 ```bash
+
 # VPC 확인
+
 aws ec2 describe-vpcs --filters "Name=tag:Name,Values=main-vpc"
 
 # Private Subnet 확인 (최소 2개 AZ)
+
 aws ec2 describe-subnets --filters "Name=tag:Name,Values=private-*"
 
 # Security Group 생성
+
 aws ec2 create-security-group \
   --group-name lgtm-ecs-sg \
   --description "Security group for LGTM ECS tasks" \
   --vpc-id vpc-xxx
 ```
 
-### 체크리스트
+### Phase 1 체크리스트
+
 - [ ] ECR 리포지토리 6개 생성 완료
 - [ ] IAM Role 2개 생성 완료
 - [ ] VPC, Subnet 확인 완료
@@ -86,14 +100,18 @@ aws ec2 create-security-group \
 ### 2.1 기존 설정 파일 분석
 
 **현재 구성:**
-```
+
+```text
 LGTM_PRD/
+
 ├── mimir/
 │   ├── mimir_docker-compose.yaml
 │   └── config/mimir-config.yaml
+
 ├── loki/
 │   ├── loki_docker-compose.yaml
 │   └── config/loki-config.yaml
+
 ├── tempo/
 │   ├── tempo-docker-compose.yaml
 │   └── config/tempo-config.yaml
@@ -114,13 +132,16 @@ LGTM_PRD/
 ### 2.3 로컬 테스트
 
 ```bash
+
 # Mimir 예시
+
 cd dockerfiles/mimir
 docker build -t lgtm-mimir:test .
 docker run -it --rm lgtm-mimir:test /usr/bin/mimir --version
 ```
 
-### 체크리스트
+### Phase 2 체크리스트
+
 - [ ] Mimir Dockerfile 작성 및 테스트
 - [ ] Loki Dockerfile 작성 및 테스트
 - [ ] Tempo Dockerfile 작성 및 테스트
@@ -146,6 +167,7 @@ docker run -it --rm lgtm-mimir:test /usr/bin/mimir --version
 ### 3.2 공통 설정
 
 **모든 Task Definition에 포함:**
+
 - `networkMode: "awsvpc"`
 - `requiresCompatibilities: ["FARGATE"]`
 - `stopTimeout: 120`
@@ -154,13 +176,15 @@ docker run -it --rm lgtm-mimir:test /usr/bin/mimir --version
 ### 3.3 환경변수 및 Secrets
 
 **Secrets Manager 설정:**
+
 ```bash
 aws secretsmanager create-secret \
   --name lgtm/s3-credentials \
   --secret-string '{"AWS_ACCESS_KEY_ID":"xxx","AWS_SECRET_ACCESS_KEY":"xxx"}'
 ```
 
-### 체크리스트
+### Phase 3 체크리스트
+
 - [ ] Mimir Task Definition 작성
 - [ ] Loki Task Definition 작성
 - [ ] Tempo Task Definition 작성
@@ -188,6 +212,7 @@ aws ecs create-cluster \
 ### 4.2 AWS CloudMap (Service Discovery) 설정
 
 **Private DNS Namespace 생성:**
+
 ```bash
 aws servicediscovery create-private-dns-namespace \
   --name lgtm.local \
@@ -196,19 +221,24 @@ aws servicediscovery create-private-dns-namespace \
 ```
 
 **Service 등록:**
+
 ```bash
+
 # Mimir
+
 aws servicediscovery create-service \
   --name mimir \
   --namespace-id ns-xxx \
   --dns-config 'NamespaceId=ns-xxx,DnsRecords=[{Type=A,TTL=10}]'
 
 # Loki, Tempo, Pyroscope, Grafana도 동일하게 생성
+
 ```
 
 ### 4.3 Application Load Balancer 설정
 
 **ALB 생성:**
+
 ```bash
 aws elbv2 create-load-balancer \
   --name lgtm-alb \
@@ -219,8 +249,11 @@ aws elbv2 create-load-balancer \
 ```
 
 **Target Group 생성:**
+
 ```bash
+
 # Grafana TG
+
 aws elbv2 create-target-group \
   --name lgtm-grafana-tg \
   --protocol HTTP \
@@ -230,11 +263,15 @@ aws elbv2 create-target-group \
   --health-check-path /api/health
 
 # Mimir, Loki, Tempo도 각각 생성
+
 ```
 
 **Listener Rule 설정:**
+
 ```bash
+
 # HTTPS Listener (443)
+
 aws elbv2 create-listener \
   --load-balancer-arn <alb-arn> \
   --protocol HTTPS \
@@ -243,6 +280,7 @@ aws elbv2 create-listener \
   --default-actions Type=forward,TargetGroupArn=<grafana-tg-arn>
 
 # Path-based routing
+
 aws elbv2 create-rule \
   --listener-arn <listener-arn> \
   --conditions Field=host-header,Values=grafana.example.com \
@@ -250,7 +288,8 @@ aws elbv2 create-rule \
   --actions Type=forward,TargetGroupArn=<grafana-tg-arn>
 ```
 
-### 체크리스트
+### Phase 4 체크리스트
+
 - [ ] ECS Cluster 생성
 - [ ] CloudMap Namespace 생성
 - [ ] CloudMap Service 6개 생성
@@ -265,22 +304,27 @@ aws elbv2 create-rule \
 ### 5.1 Docker 이미지 빌드 & ECR 푸시
 
 ```bash
+
 #!/bin/bash
+
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 REGION="ap-northeast-2"
 ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
 
 # ECR 로그인
+
 aws ecr get-login-password --region $REGION | \
   docker login --username AWS --password-stdin $ECR_URI
 
 # 각 컴포넌트 빌드 & 푸시
+
 cd dockerfiles/mimir
 docker build -t lgtm-mimir:latest .
 docker tag lgtm-mimir:latest $ECR_URI/lgtm-mimir:latest
 docker push $ECR_URI/lgtm-mimir:latest
 
 # Loki, Tempo, Pyroscope, Grafana, Alloy도 동일하게 진행
+
 ```
 
 ### 5.2 Task Definition 등록
@@ -290,12 +334,15 @@ aws ecs register-task-definition \
   --cli-input-json file://task-definitions/mimir.json
 
 # 나머지도 동일하게 등록
+
 ```
 
 ### 5.3 ECS Service 생성
 
 ```bash
+
 # Mimir Service (3 tasks)
+
 aws ecs create-service \
   --cluster lgtm-cluster \
   --service-name mimir \
@@ -311,27 +358,34 @@ aws ecs create-service \
   --load-balancers "targetGroupArn=<mimir-tg-arn>,containerName=mimir,containerPort=9009"
 
 # Loki, Tempo, Pyroscope, Grafana, Alloy도 동일하게 생성
+
 ```
 
 ### 5.4 동작 확인
 
 ```bash
+
 # Service 상태 확인
+
 aws ecs describe-services \
   --cluster lgtm-cluster \
   --services mimir loki tempo pyroscope grafana alloy
 
 # Task 상태 확인
+
 aws ecs list-tasks --cluster lgtm-cluster --service-name mimir
 
 # CloudWatch Logs 확인
+
 aws logs tail /ecs/lgtm-mimir --follow
 
 # Service Discovery 확인
+
 dig mimir.lgtm.local @<vpc-dns-server>
 ```
 
-### 체크리스트
+### Phase 5 체크리스트
+
 - [ ] 모든 이미지 빌드 및 ECR 푸시 완료
 - [ ] Task Definition 6개 등록 완료
 - [ ] ECS Service 6개 생성 완료
@@ -346,7 +400,8 @@ dig mimir.lgtm.local @<vpc-dns-server>
 ### 6.1 Jenkinsfile 작성
 
 **Pipeline 구조:**
-```
+
+```bash
 1. Checkout Code
 2. Build Docker Images
 3. Push to ECR
@@ -359,23 +414,30 @@ dig mimir.lgtm.local @<vpc-dns-server>
 ### 6.2 Jenkins 설정
 
 **필요한 Plugin:**
+
 - AWS Steps Plugin
 - Docker Pipeline Plugin
 - Amazon ECR Plugin
 
 **Credentials 설정:**
+
 - AWS Access Key (Jenkins Credentials)
 - ECR Registry (Jenkins Credentials)
 
 ### 6.3 파이프라인 테스트
 
-```bash
+```yaml
+
 # Jenkins Job 생성
+
 # Trigger: GitHub Webhook or Manual
+
 # 테스트 배포 실행
+
 ```
 
-### 체크리스트
+### Phase 6 체크리스트
+
 - [ ] Jenkinsfile 작성 완료
 - [ ] Jenkins Plugin 설치
 - [ ] Credentials 설정
@@ -388,26 +450,33 @@ dig mimir.lgtm.local @<vpc-dns-server>
 ### 7.1 Blue/Green 배포 준비
 
 **현재 상태:**
+
 - EC2: 기존 LGTM 스택 운영 중
 - ECS: 신규 LGTM 스택 배포 완료
 
 ### 7.2 DNS 전환
 
 **Route53 또는 ALB DNS 변경:**
-```bash
+
+```yaml
+
 # 기존: ec2-instance.example.com
+
 # 신규: lgtm-alb-xxx.ap-northeast-2.elb.amazonaws.com
 
 # Grafana DNS
+
 grafana.example.com → lgtm-alb-xxx (ALB)
 
 # 또는 ALB Listener Rule로 Path-based routing
+
 ```
 
 ### 7.3 점진적 전환
 
 **가중치 기반 라우팅 (선택):**
-```
+
+```text
 10% → ECS Fargate
 90% → EC2 (기존)
 
@@ -424,12 +493,14 @@ grafana.example.com → lgtm-alb-xxx (ALB)
 ### 7.4 모니터링
 
 **확인 사항:**
+
 - CloudWatch Container Insights 메트릭
 - Grafana 대시보드 정상 로딩
 - 메트릭/로그/트레이스 수집 정상
 - S3 저장 확인
 
-### 체크리스트
+### Phase 7 체크리스트
+
 - [ ] DNS 전환 완료
 - [ ] Grafana 접속 확인
 - [ ] 데이터 수집 정상 확인
@@ -443,13 +514,17 @@ grafana.example.com → lgtm-alb-xxx (ALB)
 ### 8.1 기존 EC2 리소스 정리
 
 **백업 후 종료:**
+
 ```bash
+
 # EC2 AMI 생성 (롤백용)
+
 aws ec2 create-image \
   --instance-id i-xxx \
   --name "lgtm-ec2-backup-20251210"
 
 # EC2 중지 (1주일 후 삭제)
+
 aws ec2 stop-instances --instance-ids i-xxx
 ```
 
@@ -487,18 +562,23 @@ aws ec2 stop-instances --instance-ids i-xxx
 ### 롤백 절차
 
 ```bash
+
 # 1. DNS 롤백
+
 # grafana.example.com → ec2-instance.example.com
 
 # 2. EC2 재시작
+
 aws ec2 start-instances --instance-ids i-xxx
 
 # 3. Docker Compose 재시작
+
 ssh ec2-user@<ec2-ip>
 cd /path/to/lgtm
 docker-compose up -d
 
 # 4. ECS Service 정지
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service mimir \

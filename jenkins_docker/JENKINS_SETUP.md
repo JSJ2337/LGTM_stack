@@ -17,17 +17,19 @@ Jenkins 컨테이너 실행 후 초기 설정 및 구성 방법을 설명합니�
 ## Jenkins 초기 접속
 
 ### 로컬 접속
-```
-http://localhost:8080
+
+```bash
+<<http://localhost:8080>>
 ```
 
 ### 외부 접속 (ngrok 사용 시)
+
 ```bash
 # ngrok URL 확인
-curl -s http://localhost:4040/api/tunnels | grep public_url
+curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
 
 # 또는 브라우저에서
-http://localhost:4040
+<<http://localhost:4040>>
 ```
 
 ---
@@ -35,16 +37,19 @@ http://localhost:4040
 ## 초기 관리자 비밀번호 확인
 
 ### 방법 1: Docker 명령어 (권장)
+
 ```bash
 docker exec jsj-jenkins-server cat /var/jenkins_home/secrets/initialAdminPassword
 ```
 
 ### 방법 2: 로그 확인
+
 ```bash
 docker logs jsj-jenkins-server | grep -A 5 "initial admin password"
 ```
 
 ### 방법 3: 파일 직접 확인 (bind mount 사용 시)
+
 ```bash
 cat jenkins-data/jenkins_home/secrets/initialAdminPassword
 ```
@@ -60,11 +65,13 @@ cat jenkins-data/jenkins_home/secrets/initialAdminPassword
 ### 옵션 1: Install suggested plugins (권장)
 
 **장점:**
+
 - 가장 많이 사용하는 플러그인 자동 설치
 - Git, GitHub 기본 플러그인 포함
 - 빠르고 간편
 
 **포함되는 주요 플러그인:**
+
 - Git plugin
 - GitHub plugin
 - Pipeline
@@ -83,7 +90,8 @@ cat jenkins-data/jenkins_home/secrets/initialAdminPassword
 필요한 플러그인만 선택하여 설치합니다.
 
 **최소 필수 플러그인:**
-```
+
+```bash
 ✅ Git
 ✅ GitHub
 ✅ GitHub Integration Plugin
@@ -101,7 +109,7 @@ cat jenkins-data/jenkins_home/secrets/initialAdminPassword
 
 ### 입력 정보
 
-```
+```yaml
 Username: [원하는 사용자명]
 예: admin, 본인 이름 등
 
@@ -120,6 +128,7 @@ Email address: [이메일 주소]
 ### 중요 사항
 
 ⚠️ **계정 정보를 반드시 기록해두세요!**
+
 - 이 정보로 Jenkins에 로그인합니다
 - 비밀번호 분실 시 복구가 어려울 수 있습니다
 
@@ -134,13 +143,15 @@ Email address: [이메일 주소]
 다음 화면에서 Jenkins URL을 설정합니다:
 
 **로컬 환경:**
-```
-http://localhost:8080
+
+```bash
+<<http://localhost:8080>>
 ```
 
 **ngrok 사용 (외부 접속):**
-```
-https://your-ngrok-url.ngrok-free.app
+
+```text
+<https://your-ngrok-url.ngrok-free.app>
 ```
 
 ### 주의사항
@@ -161,8 +172,9 @@ https://your-ngrok-url.ngrok-free.app
 
 1. **Manage Jenkins** → **Plugins** → **Available plugins**
 
-2. 검색 및 설치:
-   ```
+1. 검색 및 설치:
+
+   ```text
    ✅ Terraform Plugin
       - Terraform 명령어 쉽게 실행
       - Terraform 버전 관리
@@ -170,13 +182,13 @@ https://your-ngrok-url.ngrok-free.app
    ✅ AnsiColor
       - Terraform 출력에 컬러 추가
       - 가독성 향상
-   ```
+```
 
-3. 체크박스 선택 후 **Install without restart** 또는 **Install** 클릭
+1. 체크박스 선택 후 **Install without restart** 또는 **Install** 클릭
 
 ### 기타 유용한 플러그인
 
-```
+```bash
 ⭕ Blue Ocean
    - 현대적이고 직관적인 UI
    - Pipeline 시각화 개선
@@ -213,7 +225,8 @@ https://your-ngrok-url.ngrok-free.app
 ### Jenkins 버전 확인
 
 **Manage Jenkins** → 페이지 하단에서 확인
-```
+
+```bash
 Jenkins ver. 2.528.1
 ```
 
@@ -240,6 +253,7 @@ docker exec jsj-jenkins-server git --version
 **Manage Jenkins** → **Plugins** → **Installed plugins**
 
 주요 플러그인 확인:
+
 - Git plugin
 - GitHub plugin
 - GitHub Integration Plugin
@@ -253,6 +267,7 @@ docker exec jsj-jenkins-server git --version
 ✅ Jenkins 초기 설정 완료!
 
 이제 다음 작업을 진행할 수 있습니다:
+
 - [GitHub 연동](./GITHUB_INTEGRATION.md)
 - Pipeline Job 생성
 - Terraform/Terragrunt 자동화 설정
@@ -266,6 +281,7 @@ docker exec jsj-jenkins-server git --version
 **증상:** 플러그인 설치 중 일부 실패
 
 **해결:**
+
 ```bash
 # Jenkins 로그 확인
 docker logs jsj-jenkins-server
@@ -282,6 +298,7 @@ Manage Jenkins → Plugins → Available plugins
 **증상:** initialAdminPassword 파일이 없음
 
 **해결:**
+
 ```bash
 # 컨테이너 재시작
 docker restart jsj-jenkins-server
@@ -292,9 +309,10 @@ docker logs jsj-jenkins-server 2>&1 | grep -A 5 "password"
 
 ### 접속이 안 됨
 
-**증상:** http://localhost:8080 접속 실패
+**증상:** <<http://localhost:8080>> 접속 실패
 
 **해결:**
+
 ```bash
 # 컨테이너 실행 상태 확인
 docker ps | grep jsj-jenkins-server

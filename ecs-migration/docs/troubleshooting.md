@@ -9,7 +9,8 @@
 ### 문제: Task가 PENDING 상태에서 멈춤
 
 **증상:**
-```
+
+```yaml
 Task 상태: PENDING
 Desired: 3
 Running: 0
@@ -18,11 +19,15 @@ Running: 0
 **원인 및 해결:**
 
 #### 1.1 Subnet에 사용 가능한 IP 없음
+
 ```bash
+
 # 확인
+
 aws ec2 describe-subnets --subnet-ids subnet-xxx
 
 # 해결: 다른 Subnet 사용 또는 IP 확보
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service mimir \
@@ -30,11 +35,15 @@ aws ecs update-service \
 ```
 
 #### 1.2 Security Group 규칙 문제
+
 ```bash
+
 # 확인
+
 aws ec2 describe-security-groups --group-ids sg-xxx
 
 # 해결: Egress 규칙에 443 포트 허용 (ECR 이미지 풀링용)
+
 aws ec2 authorize-security-group-egress \
   --group-id sg-xxx \
   --protocol tcp \
@@ -43,13 +52,17 @@ aws ec2 authorize-security-group-egress \
 ```
 
 #### 1.3 ECR 이미지 풀링 실패
-```bash
+
+```yaml
+
 # 증상: CloudWatch Logs
+
 CannotPullContainerError: pull image manifest has been retried
 
 # 원인: IAM Role에 ECR 권한 없음
 
 # 해결: Task Execution Role에 권한 추가
+
 aws iam attach-role-policy \
   --role-name ecsTaskExecutionRole \
   --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
@@ -62,6 +75,7 @@ aws iam attach-role-policy \
 ### 문제: Task가 시작했다가 바로 STOPPED
 
 **CloudWatch Logs 확인:**
+
 ```bash
 aws logs tail /ecs/lgtm-mimir --follow
 ```
@@ -69,17 +83,21 @@ aws logs tail /ecs/lgtm-mimir --follow
 ### 2.1 설정 파일 오류
 
 **증상:**
-```
+
+```yaml
 Error: failed to parse config: yaml: unmarshal errors
 ```
 
 **해결:**
+
 1. Task Definition의 환경변수 확인
 2. Secrets Manager 값 확인
 3. 로컬에서 설정 파일 테스트
 
 ```bash
+
 # 로컬 테스트
+
 docker run -it --rm \
   -v $(pwd)/config:/etc/mimir \
   grafana/mimir:latest \
@@ -90,13 +108,17 @@ docker run -it --rm \
 ### 2.2 S3 접근 권한 문제
 
 **증상:**
-```
+
+```yaml
 Error: failed to create bucket client: Access Denied
 ```
 
 **해결:**
+
 ```bash
+
 # Task Role에 S3 권한 추가
+
 aws iam put-role-policy \
   --role-name lgtmTaskRole \
   --policy-name S3FullAccess \
@@ -113,14 +135,18 @@ aws iam put-role-policy \
 ### 2.3 메모리 부족 (OOMKilled)
 
 **증상:**
-```
+
+```yaml
 Essential container in task exited
 Reason: OutOfMemoryError
 ```
 
 **해결:**
+
 ```bash
+
 # Task Definition에서 메모리 증가
+
 # 현재: 2048 MB → 변경: 4096 MB
 
 aws ecs register-task-definition \
@@ -134,18 +160,25 @@ aws ecs register-task-definition \
 ### 문제: 컨테이너 간 통신 실패
 
 **증상:**
-```
+
+```yaml
+
 # Mimir 로그
+
 failed to join memberlist cluster: no peers to join
 ```
 
 **확인:**
+
 ```bash
+
 # CloudMap Service 확인
+
 aws servicediscovery list-services \
   --filters Name=NAMESPACE_ID,Values=ns-xxx
 
 # DNS 확인 (ECS Task 내에서)
+
 dig mimir.lgtm.local
 ```
 
@@ -154,10 +187,12 @@ dig mimir.lgtm.local
 #### 3.1 interface_names 설정 누락
 
 **Mimir/Loki/Tempo 설정 파일에 추가:**
+
 ```yaml
 memberlist:
   interface_names: ["eth1"]  # Fargate 필수!
   join_members:
+
     - mimir.lgtm.local:7946
 ```
 
@@ -178,6 +213,7 @@ aws ec2 authorize-security-group-ingress \
 ### 문제: Task 종료 시 데이터 손실
 
 **증상:**
+
 - Ingester 종료 시 메모리 청크가 S3로 플러시되지 않음
 - 데이터 누락
 
@@ -196,10 +232,12 @@ aws ec2 authorize-security-group-ingress \
 #### 4.2 Tini 사용
 
 **Dockerfile:**
-```dockerfile
+
+```yaml
 FROM grafana/mimir:latest
 
 # Tini 설치
+
 RUN apk add --no-cache tini
 
 ENTRYPOINT ["/sbin/tini", "--"]
@@ -209,7 +247,9 @@ CMD ["/usr/bin/mimir", "-config.file=/etc/mimir/config.yaml"]
 #### 4.3 Flush Endpoint 사용
 
 ```bash
+
 # Task 종료 전 수동 플러시
+
 curl -X POST http://mimir.lgtm.local:9009/ingester/flush
 ```
 
@@ -220,13 +260,15 @@ curl -X POST http://mimir.lgtm.local:9009/ingester/flush
 ### 문제: Target이 Unhealthy 상태
 
 **확인:**
+
 ```bash
 aws elbv2 describe-target-health \
   --target-group-arn <tg-arn>
 ```
 
 **증상:**
-```
+
+```yaml
 State: unhealthy
 Reason: Target.ResponseCodeMismatch
 ```
@@ -236,7 +278,9 @@ Reason: Target.ResponseCodeMismatch
 #### 5.1 Health Check Path 수정
 
 ```bash
+
 # Grafana 예시
+
 aws elbv2 modify-target-group \
   --target-group-arn <grafana-tg-arn> \
   --health-check-path /api/health \
@@ -249,17 +293,21 @@ aws elbv2 modify-target-group \
 #### 5.2 Readiness Probe 추가
 
 **Loki 예시:**
+
 ```yaml
 server:
   http_listen_port: 3100
 
 # /ready endpoint가 활성화됨
+
 ```
 
 #### 5.3 Security Group 규칙 확인
 
 ```bash
+
 # ALB에서 Target으로 Health Check 허용
+
 aws ec2 authorize-security-group-ingress \
   --group-id <ecs-sg> \
   --protocol tcp \
@@ -274,35 +322,44 @@ aws ec2 authorize-security-group-ingress \
 ### 6.1 높은 CPU 사용률
 
 **증상:**
+
 - CPU 사용률 > 80%
 - 쿼리 응답 느림
 
 **해결:**
 
 ```bash
+
 # Task 수 증가
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service mimir \
   --desired-count 5
 
 # 또는 vCPU 증가
+
 # Task Definition에서 cpu: "2048" → "4096"
+
 ```
 
 ### 6.2 높은 메모리 사용률
 
 **증상:**
+
 - Memory 사용률 > 90%
 - OOMKilled 발생
 
 **해결:**
 
-```bash
+```yaml
+
 # 메모리 증가
+
 # Task Definition에서 memory: "4096" → "8192"
 
 # Ingester 설정 튜닝 (Mimir)
+
 ingester:
   max_chunk_age: 2h  # 청크 플러시 주기 단축
 ```
@@ -312,11 +369,15 @@ ingester:
 **해결:**
 
 ```bash
+
 # Querier 수 증가
+
 # desired_count 증가
 
 # Memcached 추가 (Loki)
+
 # Sidecar 컨테이너로 Memcached 추가
+
 ```
 
 ---
@@ -326,19 +387,26 @@ ingester:
 ### 7.1 메트릭이 Mimir에 저장되지 않음
 
 **확인:**
+
 ```bash
+
 # Alloy Collector 로그 확인
+
 aws logs tail /ecs/lgtm-alloy --follow
 
 # Mimir Ingester 로그 확인
+
 aws logs tail /ecs/lgtm-mimir --follow --filter-pattern "error"
 ```
 
 **해결:**
 
 #### Tenant Header 확인
-```yaml
+
+```json
+
 # Alloy Collector 설정
+
 prometheus.remote_write "mimir" {
   endpoint {
     url = "http://mimir.lgtm.local:9009/api/v1/push"
@@ -352,15 +420,20 @@ prometheus.remote_write "mimir" {
 ### 7.2 로그가 Loki에 저장되지 않음
 
 **확인:**
+
 ```bash
+
 # Loki Distributor 로그
+
 aws logs tail /ecs/lgtm-loki --follow --filter-pattern "push"
 ```
 
 **해결:**
 
-```yaml
+```json
+
 # Alloy Collector 설정
+
 loki.write "default" {
   endpoint {
     url = "http://loki.lgtm.local:3100/loki/api/v1/push"
@@ -372,15 +445,20 @@ loki.write "default" {
 ### 7.3 트레이스가 Tempo에 저장되지 않음
 
 **확인:**
+
 ```bash
+
 # Tempo Distributor 로그
+
 aws logs tail /ecs/lgtm-tempo --follow
 ```
 
 **해결:**
 
 ```yaml
+
 # 애플리케이션 OpenTelemetry 설정 확인
+
 OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo.lgtm.local:4317
 ```
 
@@ -391,18 +469,24 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo.lgtm.local:4317
 ### 8.1 S3에 데이터가 저장되지 않음
 
 **확인:**
+
 ```bash
+
 # S3 버킷 확인
+
 aws s3 ls s3://sys-lgtm-s3/blocks/ --recursive
 
 # IAM 권한 확인
+
 aws iam get-role-policy --role-name lgtmTaskRole --policy-name S3Access
 ```
 
 **해결:**
 
 ```bash
+
 # Task Role에 S3 권한 추가
+
 aws iam put-role-policy \
   --role-name lgtmTaskRole \
   --policy-name S3FullAccess \
@@ -414,7 +498,9 @@ aws iam put-role-policy \
 **해결:**
 
 ```yaml
+
 # Mimir 설정: S3 전송 최적화
+
 blocks_storage:
   s3:
     bucket_name: sys-lgtm-s3
@@ -430,12 +516,14 @@ blocks_storage:
 ### 9.1 ECR 푸시 실패
 
 **증상:**
-```
+
+```yaml
 denied: Your authorization token has expired
 ```
 
 **해결:**
-```groovy
+
+```bash
 // Jenkinsfile
 stage('ECR Login') {
   steps {
@@ -450,20 +538,24 @@ stage('ECR Login') {
 ### 9.2 ECS 배포 타임아웃
 
 **증상:**
-```
+
+```yaml
 Deployment circuit breaker: deployment failed
 ```
 
 **해결:**
 
 ```bash
+
 # Health Check 설정 완화
+
 aws elbv2 modify-target-group \
   --target-group-arn <tg-arn> \
   --health-check-interval-seconds 60 \
   --healthy-threshold-count 2
 
 # 배포 타임아웃 증가
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service mimir \
@@ -477,8 +569,11 @@ aws ecs update-service \
 ### 10.1 Fargate 비용 증가
 
 **확인:**
+
 ```bash
+
 # Cost Explorer에서 Fargate 비용 확인
+
 aws ce get-cost-and-usage \
   --time-period Start=2025-12-01,End=2025-12-10 \
   --granularity DAILY \
@@ -489,8 +584,11 @@ aws ce get-cost-and-usage \
 **해결:**
 
 #### Fargate Spot 사용
+
 ```bash
+
 # Capacity Provider Strategy 변경
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service querier \
@@ -500,8 +598,11 @@ aws ecs update-service \
 ```
 
 #### Task 수 최적화
+
 ```bash
+
 # 불필요한 Task 제거
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service pyroscope \
@@ -513,42 +614,56 @@ aws ecs update-service \
 ## 일반적인 디버깅 명령어
 
 ### ECS 상태 확인
+
 ```bash
+
 # Service 상태
+
 aws ecs describe-services \
   --cluster lgtm-cluster \
   --services mimir
 
 # Task 목록
+
 aws ecs list-tasks \
   --cluster lgtm-cluster \
   --service-name mimir
 
 # Task 상세
+
 aws ecs describe-tasks \
   --cluster lgtm-cluster \
   --tasks <task-arn>
 ```
 
 ### CloudWatch Logs 확인
+
 ```bash
+
 # 실시간 로그
+
 aws logs tail /ecs/lgtm-mimir --follow
 
 # 에러 필터
+
 aws logs tail /ecs/lgtm-mimir --follow --filter-pattern "ERROR"
 
 # 최근 10분
+
 aws logs tail /ecs/lgtm-mimir --since 10m
 ```
 
 ### Service Discovery 확인
+
 ```bash
+
 # CloudMap Service 인스턴스
+
 aws servicediscovery list-instances \
   --service-id srv-xxx
 
 # DNS 확인 (ECS Task 내부)
+
 aws ecs execute-command \
   --cluster lgtm-cluster \
   --task <task-id> \
@@ -558,12 +673,16 @@ aws ecs execute-command \
 ```
 
 ### ALB 상태 확인
+
 ```bash
+
 # Target Health
+
 aws elbv2 describe-target-health \
   --target-group-arn <tg-arn>
 
 # ALB Access Logs 활성화
+
 aws elbv2 modify-load-balancer-attributes \
   --load-balancer-arn <alb-arn> \
   --attributes Key=access_logs.s3.enabled,Value=true \
@@ -576,38 +695,51 @@ aws elbv2 modify-load-balancer-attributes \
 
 ### 장애 발생 시
 
-**1단계: 영향 범위 확인**
+#### 1단계: 영향 범위 확인
+
 ```bash
+
 # 모든 Service 상태 확인
+
 aws ecs describe-services \
   --cluster lgtm-cluster \
   --services mimir loki tempo grafana
 ```
 
-**2단계: 롤백**
+#### 2단계: 롤백
+
 ```bash
+
 # 이전 Task Definition으로 롤백
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service mimir \
   --task-definition lgtm-mimir:1  # 이전 버전
 ```
 
-**3단계: Scale Out**
+#### 3단계: Scale Out
+
 ```bash
+
 # Task 수 긴급 증가
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service mimir \
   --desired-count 10
 ```
 
-**4단계: EC2로 완전 롤백 (최후의 수단)**
+#### 4단계: EC2로 완전 롤백 (최후의 수단)
+
 ```bash
+
 # EC2 재시작
+
 aws ec2 start-instances --instance-ids i-xxx
 
 # ECS Service 중지
+
 aws ecs update-service \
   --cluster lgtm-cluster \
   --service mimir \

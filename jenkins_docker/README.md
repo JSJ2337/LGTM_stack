@@ -18,7 +18,7 @@ Docker Compose를 사용한 Jenkins 컨테이너 설정 및 관리 프로젝트�
 
 ## 프로젝트 구조
 
-```
+```bash
 jenkins_docker/
 ├── jsj_jenkins.yaml              # Jenkins 서버 설정
 ├── jsj_ngrok.yaml                # ngrok 설정 (선택)
@@ -33,7 +33,7 @@ jenkins_docker/
 
 ### 생성될 데이터 디렉터리
 
-```
+```bash
 jenkins_docker/
 └── jenkins-data/
     └── jenkins_home/            # Jenkins 모든 데이터 (설정, 빌드, 플러그인 등)
@@ -57,7 +57,7 @@ docker-compose -f jsj_jenkins.yaml up -d --build
 # 2. 초기 비밀번호 확인
 docker exec jsj-jenkins-server cat /var/jenkins_home/secrets/initialAdminPassword
 
-# 3. 브라우저에서 http://localhost:8080 접속
+# 3. 브라우저에서 <<http://localhost:8080>> 접속
 ```
 
 ### 방법 2: Jenkins + ngrok 사용 (외부 접속)
@@ -74,8 +74,8 @@ docker-compose -f jsj_jenkins.yaml up -d --build
 docker-compose -f jsj_ngrok.yaml up -d
 
 # 4. ngrok URL 확인
-curl -s http://localhost:4040/api/tunnels | grep public_url
-# 또는 브라우저에서 http://localhost:4040 접속
+curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
+# 또는 브라우저에서 <<http://localhost:4040>> 접속
 
 # 5. ngrok URL로 Jenkins 접속
 ```
@@ -85,14 +85,18 @@ curl -s http://localhost:4040/api/tunnels | grep public_url
 ## 상세 가이드
 
 ### 📘 [Jenkins 초기 설정](./JENKINS_SETUP.md)
+
 Jenkins 컨테이너 실행 후 초기 설정 방법:
+
 - 초기 관리자 비밀번호 확인
 - 플러그인 설치
 - 관리자 계정 생성
 - Jenkins URL 설정
 
 ### 🔗 [GitHub 연동](./GITHUB_INTEGRATION.md)
+
 Jenkins와 GitHub을 연동하는 방법:
+
 - Personal Access Token 생성
 - Credentials 설정
 - GitHub Server 설정
@@ -100,7 +104,9 @@ Jenkins와 GitHub을 연동하는 방법:
 - Webhook 설정
 
 ### 🚀 [Terragrunt CI/CD Pipeline](./TERRAGRUNT_PIPELINE.md)
+
 Terragrunt 자동화 Pipeline 사용 방법:
+
 - 승인 단계가 있는 안전한 배포
 - Plan/Apply/Destroy 파라미터 제어
 - 전체 스택 또는 개별 레이어 실행
@@ -116,6 +122,7 @@ Terragrunt 자동화 Pipeline 사용 방법:
 **용도**: Jenkins 서버 실행
 
 **특징**:
+
 - Terraform 1.13.5 + Terragrunt 0.93.3 + Git 사전 설치
 - 로컬 bind mount 사용 (데이터 직접 접근 가능)
 - 포트: 8080 (웹 UI), 50000 (에이전트)
@@ -131,6 +138,7 @@ Terragrunt 자동화 Pipeline 사용 방법:
 - Jenkins CLI (jenkins-cli.jar)
 
 **실행**:
+
 ```bash
 # 이미지 빌드 및 실행
 docker-compose -f jsj_jenkins.yaml up -d --build
@@ -139,7 +147,7 @@ docker-compose -f jsj_jenkins.yaml up -d --build
 docker-compose -f jsj_jenkins.yaml up -d
 ```
 
-**접속**: http://localhost:8080
+**접속**: <<http://localhost:8080>>
 
 ---
 
@@ -148,6 +156,7 @@ docker-compose -f jsj_jenkins.yaml up -d
 **용도**: ngrok을 통한 외부 접속 제공 (Jenkins와 별도 실행)
 
 **특징**:
+
 - Jenkins 네트워크에 연결
 - GitHub/GitLab Webhook 설정 가능
 - Jenkins와 독립적으로 시작/중지 가능
@@ -158,6 +167,7 @@ docker-compose -f jsj_jenkins.yaml up -d
 3. `.env` 파일 생성 및 `NGROK_AUTHTOKEN` 설정
 
 **실행 순서**:
+
 ```bash
 # 1. Jenkins 먼저 시작
 docker-compose -f jsj_jenkins.yaml up -d
@@ -167,12 +177,13 @@ docker-compose -f jsj_ngrok.yaml up -d
 ```
 
 **ngrok URL 확인**:
+
 ```bash
 # 웹 UI에서 확인
-http://localhost:4040
+<<http://localhost:4040>>
 
 # 명령어로 확인
-curl -s http://localhost:4040/api/tunnels | grep public_url
+curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
 
 # 로그로 확인
 docker logs jsj-jenkins-ngrok
@@ -191,6 +202,7 @@ nano .env
 ```
 
 **필요한 변수**:
+
 ```bash
 # ngrok 설정 (jsj_ngrok.yaml 사용 시 필수)
 NGROK_AUTHTOKEN=your_ngrok_authtoken_here
@@ -278,7 +290,7 @@ rm -rf jenkins-data/
 모든 데이터는 호스트의 로컬 디렉터리에 저장됩니다:
 
 - **Jenkins**: `./jenkins-data/jenkins_home/`
-  - 플러그인, 작업(job) 설정, 빌드 히스토리 등
+- 플러그인, 작업(job) 설정, 빌드 히스토리 등
 
 ### 권한 문제
 
@@ -286,6 +298,7 @@ Jenkins는 컨테이너 내부의 기본 사용자(jenkins)로 실행됩니다.
 WSL2 환경에서는 파일 권한이 자동으로 관리되므로 별도 설정이 필요 없습니다.
 
 **만약 권한 문제 발생 시**:
+
 ```bash
 # Jenkins 컨테이너를 재시작하면 자동으로 권한이 설정됨
 docker-compose -f jsj_jenkins.yaml restart
@@ -343,21 +356,25 @@ sudo netstat -tulpn | grep 8080
 ### 중요한 보안 수칙
 
 1. **절대 .env 파일을 Git에 커밋하지 마세요**
-   - ngrok authtoken 등 민감한 정보 포함
-   - `.gitignore`에 이미 추가되어 있음
+
+- ngrok authtoken 등 민감한 정보 포함
+- `.gitignore`에 이미 추가되어 있음
 
 2. **초기 비밀번호 즉시 변경**
-   - Jenkins: 초기 설정 시 관리자 계정 생성
+
+- Jenkins: 초기 설정 시 관리자 계정 생성
 
 3. **프로덕션 환경에서는**
-   - HTTPS 설정 필수
-   - 방화벽 규칙 적용
-   - 정기적인 보안 업데이트
+
+- HTTPS 설정 필수
+- 방화벽 규칙 적용
+- 정기적인 보안 업데이트
 
 4. **ngrok 사용 시 주의**
-   - 공개 인터넷에 노출됨
-   - 강력한 인증 설정 필요
-   - 임시 테스트 용도로만 사용 권장
+
+- 공개 인터넷에 노출됨
+- 강력한 인증 설정 필요
+- 임시 테스트 용도로만 사용 권장
 
 ### 권장 보안 설정
 
@@ -405,11 +422,13 @@ docker network inspect jenkins_default
 ## 참고 자료
 
 ### 프로젝트 문서
+
 - [Jenkins 초기 설정 가이드](./JENKINS_SETUP.md)
 - [GitHub 연동 가이드](./GITHUB_INTEGRATION.md)
 - [Terragrunt CI/CD Pipeline 가이드](./TERRAGRUNT_PIPELINE.md)
 
 ### 외부 문서
+
 - [Jenkins 공식 문서](https://www.jenkins.io/doc/)
 - [Jenkins Docker Hub](https://hub.docker.com/r/jenkins/jenkins)
 - [Terraform 문서](https://www.terraform.io/docs)
@@ -431,6 +450,7 @@ docker network inspect jenkins_default
 상세한 내용은 [GITHUB_INTEGRATION.md](./GITHUB_INTEGRATION.md)를 참조하세요.
 
 ### 요약
+
 1. **GitHub Token 생성**: Settings → Developer settings → Tokens
 2. **Jenkins Credentials 추가**: 2개 필요 (Secret text + Username/Password)
 3. **GitHub Server 설정**: Manage Jenkins → System → GitHub

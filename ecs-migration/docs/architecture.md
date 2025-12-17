@@ -2,7 +2,7 @@
 
 ## 전체 아키텍처
 
-```
+```text
                     ┌───────────────────────────┐
                     │   Application Users       │
                     └────────────┬──────────────┘
@@ -71,7 +71,7 @@
 
 ## 네트워크 아키텍처
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                         VPC                                  │
 │                                                              │
@@ -130,7 +130,7 @@
 
 ### 1. Metrics Flow
 
-```
+```text
 Application
     │
     ▼ (Prometheus Remote Write)
@@ -154,7 +154,7 @@ Grafana (Fargate)
 
 ### 2. Logs Flow
 
-```
+```text
 Application
     │
     ▼ (Loki Push API)
@@ -178,7 +178,7 @@ Grafana (Fargate)
 
 ### 3. Traces Flow
 
-```
+```text
 Application (OpenTelemetry)
     │
     ▼ (OTLP gRPC/HTTP)
@@ -206,6 +206,7 @@ Grafana (Fargate)
 **리소스:** 2 vCPU, 4GB Memory
 
 **주요 설정:**
+
 - Memberlist로 클러스터링
 - S3 백엔드 (blocks, ruler, alertmanager)
 - 1년 보존 정책
@@ -217,6 +218,7 @@ Grafana (Fargate)
 **리소스:** 1 vCPU, 2GB Memory
 
 **주요 설정:**
+
 - TSDB v13 스키마
 - S3 백엔드
 - Memcached 캐시
@@ -229,6 +231,7 @@ Grafana (Fargate)
 **리소스:** 1 vCPU, 2GB Memory
 
 **주요 설정:**
+
 - OTLP 수신 (gRPC :4317, HTTP :4318)
 - S3 백엔드
 - 7일 보존
@@ -241,6 +244,7 @@ Grafana (Fargate)
 **리소스:** 1 vCPU, 2GB Memory
 
 **주요 설정:**
+
 - S3 백엔드
 - 30일 보존
 
@@ -251,6 +255,7 @@ Grafana (Fargate)
 **리소스:** 0.5 vCPU, 1GB Memory
 
 **데이터 소스:**
+
 - Mimir (Prometheus)
 - Loki
 - Tempo
@@ -263,6 +268,7 @@ Grafana (Fargate)
 **리소스:** 0.5 vCPU, 1GB Memory
 
 **수집 대상:**
+
 - CloudWatch Metrics (RDS, ALB, NLB, ElastiCache)
 - CloudWatch Logs
 - ECS Container Insights
@@ -272,7 +278,8 @@ Grafana (Fargate)
 **Namespace:** `lgtm.local` (Private DNS)
 
 **Services:**
-```
+
+```text
 mimir.lgtm.local:9009       → Mimir Tasks (3개)
 loki.lgtm.local:3100        → Loki Tasks (2개)
 tempo.lgtm.local:3200       → Tempo Tasks (1개)
@@ -285,7 +292,8 @@ grafana.lgtm.local:3000     → Grafana Task (1개)
 **Application Load Balancer:**
 
 **Listener Rules (Port 443):**
-```
+
+```text
 grafana.example.com/*              → Grafana Target Group
 mimir.example.com/api/v1/push      → Mimir Target Group
 loki.example.com/loki/api/v1/push  → Loki Target Group
@@ -293,6 +301,7 @@ tempo.example.com/api/traces       → Tempo Target Group
 ```
 
 **Target Groups:**
+
 - Grafana TG → Port 3000
 - Mimir TG → Port 9009
 - Loki TG → Port 3100
@@ -301,18 +310,23 @@ tempo.example.com/api/traces       → Tempo Target Group
 ## Security Groups
 
 ### ALB Security Group
-```
+
+```text
 Inbound:
+
 - 443/tcp from 0.0.0.0/0 (HTTPS)
 - 80/tcp from 0.0.0.0/0 (HTTP → HTTPS redirect)
 
 Outbound:
+
 - All traffic
 ```
 
 ### ECS Tasks Security Group
-```
+
+```text
 Inbound:
+
 - 3000/tcp from ALB SG (Grafana)
 - 9009/tcp from ALB SG + Self (Mimir)
 - 3100/tcp from ALB SG + Self (Loki)
@@ -322,6 +336,7 @@ Inbound:
 - 7946/tcp from Self (Memberlist)
 
 Outbound:
+
 - All traffic
 ```
 
@@ -330,8 +345,10 @@ Outbound:
 **Bucket:** `sys-lgtm-s3` (ap-northeast-2)
 
 **구조:**
-```
+
+```text
 sys-lgtm-s3/
+
 ├── blocks/              # Mimir 메트릭 블록
 ├── rules/               # Mimir 알람 룰
 ├── alerts/              # Mimir Alertmanager 상태
@@ -341,6 +358,7 @@ sys-lgtm-s3/
 ```
 
 **Lifecycle Policy:**
+
 - Standard → Infrequent Access (30일)
 - Infrequent Access → Glacier (90일)
 - Glacier → 삭제 (1년)
@@ -348,6 +366,7 @@ sys-lgtm-s3/
 ## IAM Roles
 
 ### Task Execution Role
+
 ```json
 {
   "Version": "2012-10-17",
@@ -369,6 +388,7 @@ sys-lgtm-s3/
 ```
 
 ### Task Role (Mimir/Loki/Tempo/Pyroscope)
+
 ```json
 {
   "Version": "2012-10-17",
@@ -391,6 +411,7 @@ sys-lgtm-s3/
 ```
 
 ### Task Role (Alloy Collector)
+
 ```json
 {
   "Version": "2012-10-17",
@@ -416,7 +437,8 @@ sys-lgtm-s3/
 ### CloudWatch Logs
 
 **Log Groups:**
-```
+
+```text
 /ecs/lgtm-mimir
 /ecs/lgtm-loki
 /ecs/lgtm-tempo
@@ -430,13 +452,15 @@ sys-lgtm-s3/
 ### CloudWatch Metrics
 
 **Container Insights 활성화:**
-```
+
+```bash
 aws ecs update-cluster-settings \
   --cluster lgtm-cluster \
   --settings name=containerInsights,value=enabled
 ```
 
 **수집 메트릭:**
+
 - CPU 사용률
 - 메모리 사용률
 - 네트워크 I/O
@@ -447,6 +471,7 @@ aws ecs update-cluster-settings \
 ### Fargate Spot 사용 (선택)
 
 **적용 대상:**
+
 - Querier (상태 비저장)
 - Query Frontend
 

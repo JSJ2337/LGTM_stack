@@ -4,7 +4,7 @@ EC2 기반 LGTM 스택을 ECS Fargate로 마이그레이션하기 위한 설정 
 
 ## 📁 폴더 구조
 
-```
+```text
 ecs-migration/
 ├── README.md                    # 이 파일
 ├── docs/                        # 문서
@@ -79,12 +79,14 @@ aws ecs create-service \
 ## 📋 마이그레이션 체크리스트
 
 ### Phase 1: 준비 (1일)
+
 - [ ] ECR 리포지토리 생성
 - [ ] VPC, Subnet, Security Group 확인
 - [ ] IAM Role 생성 (TaskExecutionRole, TaskRole)
 - [ ] S3 버킷 권한 확인
 
 ### Phase 2: Dockerfile 작성 (2일)
+
 - [ ] Mimir Dockerfile
 - [ ] Loki Dockerfile
 - [ ] Tempo Dockerfile
@@ -93,6 +95,7 @@ aws ecs create-service \
 - [ ] Alloy Dockerfile
 
 ### Phase 3: Task Definition 작성 (2일)
+
 - [ ] Mimir Task Definition
 - [ ] Loki Task Definition
 - [ ] Tempo Task Definition
@@ -101,6 +104,7 @@ aws ecs create-service \
 - [ ] Alloy Task Definition
 
 ### Phase 4: 인프라 구성 (3일)
+
 - [ ] ECS Cluster 생성
 - [ ] AWS CloudMap (Service Discovery) 설정
 - [ ] Application Load Balancer 설정
@@ -108,18 +112,21 @@ aws ecs create-service \
 - [ ] ALB Listener Rule 설정
 
 ### Phase 5: 배포 테스트 (2일)
+
 - [ ] 각 서비스 배포
 - [ ] Service Discovery 동작 확인
 - [ ] 데이터 수집 테스트
 - [ ] S3 저장 확인
 
 ### Phase 6: Jenkins CI/CD (2일)
+
 - [ ] Jenkinsfile 작성
 - [ ] ECR 푸시 자동화
 - [ ] ECS 배포 자동화
 - [ ] 파이프라인 테스트
 
 ### Phase 7: 트래픽 전환 (1일)
+
 - [ ] Blue/Green 배포 설정
 - [ ] DNS 전환
 - [ ] 모니터링 확인
@@ -130,12 +137,14 @@ aws ecs create-service \
 ### Fargate 필수 설정
 
 **Memberlist (Mimir/Loki/Tempo):**
+
 ```yaml
 memberlist:
   interface_names: ["eth1"]  # Fargate 1.4.0+ 필수
 ```
 
 **Graceful Shutdown:**
+
 ```json
 {
   "stopTimeout": 120
@@ -145,9 +154,11 @@ memberlist:
 ### Service Discovery
 
 **CloudMap Namespace:**
+
 - `lgtm.local` (Private DNS)
 
 **Service Endpoints:**
+
 - `mimir.lgtm.local:9009`
 - `loki.lgtm.local:3100`
 - `tempo.lgtm.local:3200`
