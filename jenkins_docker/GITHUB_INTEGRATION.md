@@ -53,14 +53,14 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
 
 ### 1-2. Developer settings 이동
 
-1. 왼쪽 메뉴 맨 아래 **Developer settings** 클릭
-2. **Personal access tokens** → **Tokens (classic)** 클릭
+4. 왼쪽 메뉴 맨 아래 **Developer settings** 클릭
+5. **Personal access tokens** → **Tokens (classic)** 클릭
 
 ### 1-3. 새 토큰 생성
 
-1. **Generate new token** → **Generate new token (classic)** 선택
+6. **Generate new token** → **Generate new token (classic)** 선택
 
-2. **토큰 설정:**
+7. **토큰 설정:**
 
    ```text
    Note: Jenkins Token
@@ -74,7 +74,7 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
    - No expiration (권장하지 않음)
 ```
 
-3. **권한 선택 (Scopes):**
+8. **권한 선택 (Scopes):**
 
    ```text
    ✅ repo (전체 체크)
@@ -89,7 +89,7 @@ GitHub API 접근을 위한 토큰을 발급받습니다.
       ✅ read:repo_hook
 ```
 
-4. 페이지 맨 아래 **Generate token** 클릭
+9. 페이지 맨 아래 **Generate token** 클릭
 
 ### 1-4. 토큰 복사 및 저장
 
@@ -180,8 +180,8 @@ Jenkins와 GitHub API를 연결합니다.
 
 ### 3-2. GitHub Server 추가
 
-1. **Add GitHub Server** 버튼 클릭
-2. **GitHub Server** 선택
+3. **Add GitHub Server** 버튼 클릭
+4. **GitHub Server** 선택
 
 ### 3-3. 설정 입력
 
@@ -201,14 +201,14 @@ Credentials: github-pat
 
 ### 3-4. 연결 테스트
 
-1. **Test connection** 버튼 클릭
-2. 성공 메시지 확인:
+5. **Test connection** 버튼 클릭
+6. 성공 메시지 확인:
 
    ```text
    Credentials verified for user [사용자명], rate limit: xxxxx
 ```
 
-3. 에러 발생 시 Credential과 토큰 권한 확인
+7. 에러 발생 시 Credential과 토큰 권한 확인
 
 ### 3-5. 저장
 
@@ -361,9 +361,9 @@ curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
 
 ### 5-3. Webhook 추가
 
-1. **Add webhook** 버튼 클릭 (초록색)
+4. **Add webhook** 버튼 클릭 (초록색)
 
-2. **Webhook 설정 입력:**
+5. **Webhook 설정 입력:**
 
    ```text
    Payload URL: <https://[ngrok-url]/github-webhook/>
@@ -382,31 +382,31 @@ curl -s <<http://localhost:4040>/api/tunnels> | grep public_url
    (기본값 - ngrok은 유효한 SSL 인증서 사용)
 ```
 
-3. **Which events would you like to trigger this webhook?**
+6. **Which events would you like to trigger this webhook?**
 
    ```text
    ◉ Just the push event
 ```
 
-4. **Active 확인:**
+7. **Active 확인:**
 
    ```text
    ☑ Active
 ```
 
-5. **Add webhook** 버튼 클릭 (페이지 하단)
+8. **Add webhook** 버튼 클릭 (페이지 하단)
 
 ### 5-4. Webhook 상태 확인
 
 Webhook 목록 페이지로 이동하면:
 
-#### 성공:
+#### 성공
 
 ```bash
 ✓ <https://7c60bf2f2491.ngrok-free.app/github-webhook/>
 ```
 
-#### 실패:
+#### 실패
 
 ```bash
 ✗ <https://7c60bf2f2491.ngrok-free.app/github-webhook/>
@@ -464,12 +464,12 @@ GitHub 리포지토리:
 
 **문제:** GitHub Server 또는 Pipeline 설정에서 Credential이 안 보임
 
-#### 원인:
+#### 원인
 
 - GitHub Server: Secret text 타입만 인식
 - Pipeline: Username with password 타입 필요
 
-#### 해결:
+#### 해결
 
 1. Credentials → (global) 이동
 2. 올바른 Kind로 다시 생성
@@ -477,24 +477,24 @@ GitHub 리포지토리:
 
 ### Git 리포지토리 연결 실패
 
-#### 에러:
+#### 에러
 
 ```bash
 Failed to connect to repository
 Authentication failed
 ```
 
-#### 해결:
+#### 해결 (2)
 
-1. Credential에 사용한 토큰 권한 확인 (`repo` 권한 필요)
-2. Repository URL이 `.git`으로 끝나는지 확인
-3. Private 리포지토리인 경우 토큰 권한 재확인
+4. Credential에 사용한 토큰 권한 확인 (`repo` 권한 필요)
+5. Repository URL이 `.git`으로 끝나는지 확인
+6. Private 리포지토리인 경우 토큰 권한 재확인
 
 ### Webhook이 작동하지 않음
 
 **증상:** Push했는데 Jenkins 빌드가 자동 실행 안 됨
 
-#### 확인사항:
+#### 확인사항
 
 1. **Webhook URL 확인:**
 
@@ -529,7 +529,7 @@ Authentication failed
 ngrok 무료 버전은 재시작 시 URL 변경됨
 ```
 
-#### 해결:
+#### 해결 (3)
 
 ```bash
 # 새 ngrok URL 확인
@@ -545,7 +545,7 @@ Settings → Webhooks → Edit
 Jenkins가 중지되었거나 ngrok이 꺼짐
 ```
 
-#### 해결:
+#### 해결 (4)
 
 ```bash
 # Jenkins 상태 확인
@@ -601,7 +601,7 @@ docker-compose -f jsj_ngrok.yaml restart
 - 강력한 관리자 비밀번호 필수
 - Jenkins Security 설정 강화 권장
 
-#### 프로덕션 환경:
+#### 프로덕션 환경
 
 - 고정 도메인 사용
 - HTTPS 인증서 적용

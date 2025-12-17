@@ -87,7 +87,7 @@ terraform_gcp_infra/
 
 ### 1. 수동 승인 단계
 
-#### Apply 또는 Destroy 실행 전 반드시 승인 필요:
+#### Apply 또는 Destroy 실행 전 반드시 승인 필요
 
 ```bash
 Terragrunt Plan 실행 (자동)
@@ -173,7 +173,7 @@ timeout(time: 30, unit: 'MINUTES')
 | **apply** | Plan → 승인 → Apply | ✅ 필수 | ✅ 있음 |
 | **destroy** | 승인 → Destroy | ✅ 필수 | ✅ 삭제 |
 
-#### 권장:
+#### 권장
 
 - 처음에는 항상 `plan`으로 시작
 - Plan 결과 확인 후 `apply` 실행
@@ -193,7 +193,7 @@ timeout(time: 30, unit: 'MINUTES')
 | **65-cache** | 캐시 | Memorystore Redis |
 | **70-loadbalancer** | 로드밸런서 | LB, 백엔드 |
 
-#### 주의:
+#### 주의
 
 - `all` 선택 시 모든 레이어가 순서대로 실행됩니다
 - 처음 배포 시에는 반드시 `all` 또는 순서대로 실행
@@ -220,7 +220,7 @@ timeout(time: 30, unit: 'MINUTES')
 4. Console Output에서 Plan 결과 확인
 5. **자동 완료** (승인 불필요)
 
-#### 결과:
+#### 결과
 
 - ✅ 변경사항 확인 가능
 - ❌ 인프라 변경 없음
@@ -268,7 +268,7 @@ timeout(time: 30, unit: 'MINUTES')
 4. **승인 클릭**
 5. Apply 실행 및 완료 확인
 
-#### 결과:
+#### 결과 (2)
 
 - ✅ 네트워크 레이어만 변경
 - ✅ 다른 레이어는 영향 없음
@@ -306,7 +306,7 @@ timeout(time: 30, unit: 'MINUTES')
    00-project → 10-network → 20-storage → ...
 ```
 
-#### 소요 시간:
+#### 소요 시간
 
 - Plan: 약 5-10분
 - Apply: 약 20-40분 (레이어 개수에 따라)
@@ -315,7 +315,7 @@ timeout(time: 30, unit: 'MINUTES')
 
 ### 시나리오 4: GitHub Push 후 자동 실행
 
-#### 현재 동작:
+#### 현재 동작
 
 ```bash
 git push origin 433_code
@@ -325,7 +325,7 @@ git push origin 433_code
 → **기본 파라미터로 실행** (plan + all)
 → Plan만 확인, 인프라 변경 없음!
 
-#### 의도:
+#### 의도
 
 - Push 시 자동으로 Plan을 확인
 - 변경사항이 있는지 알림
@@ -391,7 +391,7 @@ Pipeline 진행 중...
 
 ### 문제 1: GCP 인증 실패
 
-#### 증상:
+#### 증상
 
 ```bash
 Error: google: could not find default credentials
@@ -405,7 +405,7 @@ Error: google: could not find default credentials
 
 ### 문제 2: Terragrunt Lock 파일 충돌
 
-#### 증상:
+#### 증상 (2)
 
 ```bash
 Error: Failed to acquire state lock
@@ -413,7 +413,7 @@ Error: Failed to acquire state lock
 
 **원인:** 다른 곳에서 동시 실행 중
 
-#### 해결:
+#### 해결
 
 ```bash
 # GCS에서 lock 확인 및 해제
@@ -437,7 +437,7 @@ gsutil rm gs://delabs-terraform-state-prod/jsj-game-f/[layer]/.terraform.tfstate
 
 ### 문제 4: Terragrunt 명령어 실패
 
-#### 증상:
+#### 증상 (3)
 
 ```bash
 terragrunt: command not found
@@ -445,7 +445,7 @@ terragrunt: command not found
 
 **원인:** Jenkins 컨테이너에 Terragrunt 미설치
 
-#### 해결:
+#### 해결 (2)
 
 ```bash
 # Jenkins 컨테이너 확인
@@ -605,21 +605,21 @@ terragrunt destroy -auto-approve
 
 ### ❌ DON'T (금지)
 
-1. **Plan 없이 Apply 하지 마세요**
+6. **Plan 없이 Apply 하지 마세요**
 
 - 예상치 못한 변경 위험
 
-2. **전체 스택 Destroy 금지**
+7. **전체 스택 Destroy 금지**
 
 - 특별한 경우 아니면 사용 금지
 - 모든 인프라가 삭제됨
 
-3. **승인 없이 넘어가지 마세요**
+8. **승인 없이 넘어가지 마세요**
 
 - 반드시 Plan 확인
 - 타임아웃 전에 승인
 
-4. **동시에 여러 레이어 수정 금지**
+9. **동시에 여러 레이어 수정 금지**
 
 - 문제 발생 시 원인 파악 어려움
 - 한 번에 하나씩
