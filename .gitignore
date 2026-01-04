@@ -1,2 +1,50 @@
-.DS_Store
+# Claude AI 설정
+.claude/
 CLAUDE.md
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Docker
+docker-compose.override.yml
+.env
+
+# Grafana
+grafana/data/
+*.db
+
+# Loki
+loki/data/
+loki/wal/
+
+# Tempo
+tempo/data/
+
+# Mimir
+mimir/data/
+
+# Pyroscope
+pyroscope/data/
+
+# 로그 파일
+*.log
+
+# 백업 파일
+*.bak
+*.backup
+
+# 임시 파일
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Markdownlint
+.markdownlint.json
