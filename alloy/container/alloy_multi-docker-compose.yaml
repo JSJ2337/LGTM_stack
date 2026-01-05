@@ -21,8 +21,8 @@ services:
       - ./alloy-data:/var/lib/alloy
       - ./remote-config:/data/alloy-remote-config
     environment:
-      CF_API_TOKEN: "REMOVED_CF_API_TOKEN"   # 직접 입력
-      CF_ZONE_ID_1: "REMOVED_CF_ZONE_ID"  # 필요시 블록 복제
+      CF_API_TOKEN: ${CF_API_TOKEN}   # .env에서 주입
+      CF_ZONE_ID_1: ${CF_ZONE_ID_1}   # .env에서 주입
       # CF_ZONE_ID_2: "..."
       # CF_ZONE_ID_3: "..."
       LOKI_URL: "http://ftt-loki:3100/loki/api/v1/push"
@@ -48,7 +48,7 @@ services:
     image: ghcr.io/lablabs/cloudflare_exporter:latest
     container_name: ftt-cloudflare
     environment:
-      CF_API_TOKEN: "REMOVED_CF_API_TOKEN"   # ftt-alloy와 동일 토큰 직접 입력
+      CF_API_TOKEN: ${CF_API_TOKEN}   # .env에서 주입
       LISTEN: ":2112"
       # CF_ZONES: "zoneid1,zoneid2"  # 특정 존만 수집 시(옵션)
     ports:
