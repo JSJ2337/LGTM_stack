@@ -10,7 +10,8 @@ LABEL version="3.5.1"
 LABEL environment="production"
 
 # 설정 파일 복사 (Distroless 이미지는 shell 없음, COPY만 가능)
-COPY config/loki-config.yaml /etc/loki/loki-config.yaml
+# Loki 3.x는 /etc/loki/config.yaml 또는 /loki/config.yaml 경로 사용
+COPY config/loki-config.yaml /etc/loki/config.yaml
 
 # 환경변수 기본값
 ENV AWS_REGION=ap-northeast-2
@@ -23,7 +24,4 @@ EXPOSE 3100
 # HEALTHCHECK 제거 - ALB 헬스체크 사용
 
 # Loki 실행
-CMD ["/usr/bin/loki", \
-    "-config.file=/etc/loki/loki-config.yaml", \
-    "-config.expand-env=true", \
-    "-log.level=warn"]
+CMD ["-config.file=/etc/loki/config.yaml", "-config.expand-env=true"]
