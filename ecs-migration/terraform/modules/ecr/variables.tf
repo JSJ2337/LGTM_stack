@@ -72,6 +72,12 @@ variable "lifecycle_policy_untagged_days" {
   }
 }
 
+variable "force_delete" {
+  description = "Force delete ECR repository even if it contains images"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Additional tags for resources"
   type        = map(string)

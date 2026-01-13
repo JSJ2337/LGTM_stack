@@ -47,6 +47,7 @@ on:
           - 01-vpc
           - 05-cloudwatch-logs
           - 10-ecr
+          - 15-s3
           - 20-iam
           - 30-security-groups
           - 40-cloudmap
@@ -84,7 +85,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.component }}" == "all" ]; then
-              echo 'components=["01-vpc","05-cloudwatch-logs","10-ecr","20-iam","30-security-groups","40-cloudmap","50-alb","60-ecs"]' >> $GITHUB_OUTPUT
+              echo 'components=["01-vpc","05-cloudwatch-logs","10-ecr","15-s3","20-iam","30-security-groups","40-cloudmap","50-alb","60-ecs"]' >> $GITHUB_OUTPUT
             else
               echo 'components=["${{ github.event.inputs.component }}"]' >> $GITHUB_OUTPUT
             fi
@@ -147,6 +148,19 @@ jobs:
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 10-ecr
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
+
+  stage1-s3:
+    name: "Stage 1: S3"
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '15-s3') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 15-s3
       action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
@@ -226,6 +240,7 @@ jobs:
       - stage1-vpc
       - stage1-cloudwatch-logs
       - stage1-ecr
+      - stage1-s3
       - stage1-iam
       - stage2-security-groups
       - stage2-cloudmap
@@ -237,6 +252,7 @@ jobs:
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage1-cloudwatch-logs.result == 'success' || needs.stage1-cloudwatch-logs.result == 'skipped') &&
       (needs.stage1-ecr.result == 'success' || needs.stage1-ecr.result == 'skipped') &&
+      (needs.stage1-s3.result == 'success' || needs.stage1-s3.result == 'skipped') &&
       (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
       (needs.stage2-security-groups.result == 'success' || needs.stage2-security-groups.result == 'skipped') &&
       (needs.stage2-cloudmap.result == 'success' || needs.stage2-cloudmap.result == 'skipped') &&
@@ -258,6 +274,7 @@ jobs:
       - stage1-vpc
       - stage1-cloudwatch-logs
       - stage1-ecr
+      - stage1-s3
       - stage1-iam
       - stage2-security-groups
       - stage2-cloudmap
@@ -274,6 +291,7 @@ jobs:
           echo "| VPC | ${{ needs.stage1-vpc.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| CloudWatch Logs | ${{ needs.stage1-cloudwatch-logs.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ECR | ${{ needs.stage1-ecr.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| S3 | ${{ needs.stage1-s3.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| IAM | ${{ needs.stage1-iam.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security Groups | ${{ needs.stage2-security-groups.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| CloudMap | ${{ needs.stage2-cloudmap.result }} |" >> $GITHUB_STEP_SUMMARY
