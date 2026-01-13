@@ -9,16 +9,8 @@ LABEL app="lgtm-mimir"
 LABEL version="2.16.0"
 LABEL environment="production"
 
-# 설정 파일 복사
-USER root
+# 설정 파일 복사 (Distroless 이미지는 shell 없음, COPY만 가능)
 COPY config/mimir-config.yaml /etc/mimir/mimir-config.yaml
-
-# 데이터 디렉토리 생성
-RUN mkdir -p /var/mimir/tsdb /var/mimir/compactor && \
-    chown -R nobody:nogroup /var/mimir
-
-# 비root 유저로 전환
-USER nobody
 
 # 환경변수 기본값
 ENV AWS_REGION=ap-northeast-2
@@ -27,9 +19,8 @@ ENV MIMIR_S3_BUCKET=sys-lgtm-s3
 # 포트 노출
 EXPOSE 8080 9095 7946
 
-# 헬스체크 (wget 사용 - mimir 이미지에 포함)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/-/ready || exit 1
+# 헬스체크 비활성화 (Distroless에서는 wget/curl 없음, ECS Task Definition에서 설정)
+# HEALTHCHECK 제거 - ALB 헬스체크 사용
 
 # Mimir 실행 (ECS Fargate 최적화 옵션 포함)
 CMD ["/bin/mimir", \
