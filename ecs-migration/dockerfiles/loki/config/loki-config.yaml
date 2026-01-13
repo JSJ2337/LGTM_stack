@@ -20,7 +20,8 @@ common:
 # Memberlist (ECS Fargate)
 ########################
 memberlist:
-  bind_addr: "0.0.0.0"
+  bind_addr:
+    - "0.0.0.0"
   bind_port: 7946
   join_members:
     - "loki.lgtm.local:7946"
