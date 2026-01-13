@@ -29,6 +29,10 @@
           "value": "ap-northeast-2"
         },
         {
+          "name": "PYROSCOPE_S3_BUCKET",
+          "value": "jsj-lgtm-data-s3"
+        },
+        {
           "name": "TZ",
           "value": "Asia/Seoul"
         }
@@ -40,13 +44,6 @@
           "awslogs-region": "ap-northeast-2",
           "awslogs-stream-prefix": "pyroscope"
         }
-      },
-      "healthCheck": {
-        "command": ["CMD-SHELL", "curl -f http://localhost:4040/ready || exit 1"],
-        "interval": 30,
-        "timeout": 10,
-        "retries": 3,
-        "startPeriod": 30
       },
       "stopTimeout": 120
     }

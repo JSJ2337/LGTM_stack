@@ -32,6 +32,10 @@
         {
           "name": "AWS_REGION",
           "value": "ap-northeast-2"
+        },
+        {
+          "name": "TEMPO_S3_BUCKET",
+          "value": "jsj-lgtm-data-s3"
         }
       ],
       "logConfiguration": {
@@ -41,13 +45,6 @@
           "awslogs-region": "ap-northeast-2",
           "awslogs-stream-prefix": "tempo"
         }
-      },
-      "healthCheck": {
-        "command": ["CMD-SHELL", "curl -f http://localhost:3200/ready || exit 1"],
-        "interval": 30,
-        "timeout": 10,
-        "retries": 3,
-        "startPeriod": 30
       },
       "stopTimeout": 120
     }
