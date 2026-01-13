@@ -22,9 +22,9 @@ output "private_subnet_ids" {
   value       = module.vpc.private_subnet_ids
 }
 
-output "nat_gateway_ids" {
-  description = "NAT Gateway IDs"
-  value       = module.vpc.nat_gateway_ids
+output "nat_gateway_ips" {
+  description = "NAT Gateway public IPs"
+  value       = module.vpc.nat_gateway_ips
 }
 
 output "internet_gateway_id" {

@@ -54,3 +54,18 @@ output "lgtm_task_role_arn" {
   value       = aws_iam_role.lgtm_task.arn
   sensitive   = true
 }
+
+output "lgtm_task_role_name" {
+  description = "LGTM shared task role name"
+  value       = aws_iam_role.lgtm_task.name
+}
+
+output "alloy_task_role_name" {
+  description = "Alloy task role name"
+  value       = aws_iam_role.alloy_task.name
+}
+
+output "grafana_task_role_name" {
+  description = "Grafana task role name"
+  value       = aws_iam_role.grafana_task.name
+}
