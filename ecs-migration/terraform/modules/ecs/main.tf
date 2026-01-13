@@ -494,14 +494,8 @@ resource "aws_ecs_service" "mimir" {
     container_port   = 8080
   }
 
-  service_registries {
-    registry_arn = "arn:aws:servicediscovery:${var.aws_region}:${var.aws_account_id}:service/${var.cloudmap_namespace_id}"
-  }
-
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
-  }
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
 
   tags = {
     Name        = "mimir"
@@ -533,10 +527,8 @@ resource "aws_ecs_service" "loki" {
     container_port   = 3100
   }
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
-  }
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
 
   tags = {
     Name        = "loki"
@@ -568,10 +560,8 @@ resource "aws_ecs_service" "tempo" {
     container_port   = 3200
   }
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
-  }
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
 
   tags = {
     Name        = "tempo"
@@ -597,10 +587,8 @@ resource "aws_ecs_service" "pyroscope" {
     assign_public_ip = false
   }
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
-  }
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
 
   tags = {
     Name        = "pyroscope"
@@ -632,10 +620,8 @@ resource "aws_ecs_service" "grafana" {
     container_port   = 3000
   }
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
-  }
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
 
   tags = {
     Name        = "grafana"
@@ -661,10 +647,8 @@ resource "aws_ecs_service" "alloy" {
     assign_public_ip = false
   }
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
-  }
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
 
   tags = {
     Name        = "alloy"
