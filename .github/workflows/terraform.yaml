@@ -4,6 +4,12 @@
 
 name: Terraform Infrastructure
 
+# 전체 워크플로우에 대한 권한 설정 (reusable workflow에서 상속)
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
 on:
   push:
     branches:

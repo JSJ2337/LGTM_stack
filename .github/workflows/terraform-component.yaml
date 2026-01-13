@@ -25,10 +25,7 @@ jobs:
     name: "${{ inputs.component }} - ${{ inputs.action }}"
     runs-on: ubuntu-latest
 
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: write
+    # permissions는 caller workflow에서 상속됨 (secrets: inherit 사용)
 
     env:
       TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
