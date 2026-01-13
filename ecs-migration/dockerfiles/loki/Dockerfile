@@ -9,19 +9,16 @@ LABEL app="lgtm-loki"
 LABEL version="3.5.1"
 LABEL environment="production"
 
-# Tini init 시스템 설치 (Graceful Shutdown)
-USER root
-RUN apk add --no-cache tini wget
-
 # 설정 파일 복사
+USER root
 COPY config/loki-config.yaml /etc/loki/loki-config.yaml
 
 # 데이터 디렉토리 생성
-RUN mkdir -p /ftt-loki/wal /ftt-loki/index /ftt-loki/index_cache /ftt-loki/compactor && \
-    chown -R loki:loki /ftt-loki
+RUN mkdir -p /loki/wal /loki/index /loki/index_cache /loki/compactor && \
+    chown -R 10001:10001 /loki
 
 # 비root 유저로 전환
-USER loki
+USER 10001
 
 # 환경변수 기본값
 ENV AWS_REGION=ap-northeast-2
@@ -33,9 +30,6 @@ EXPOSE 3100
 # 헬스체크
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1
-
-# Tini를 통한 Graceful Shutdown
-ENTRYPOINT ["/sbin/tini", "--"]
 
 # Loki 실행
 CMD ["/usr/bin/loki", \

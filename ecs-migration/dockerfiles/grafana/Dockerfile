@@ -9,11 +9,8 @@ LABEL app="lgtm-grafana"
 LABEL version="12.1.0"
 LABEL environment="production"
 
-# root 유저로 전환하여 패키지 설치
-USER root
-RUN apk add --no-cache tini curl
-
 # 프로비저닝 디렉토리 생성
+USER root
 RUN mkdir -p /etc/grafana/provisioning/datasources \
              /etc/grafana/provisioning/dashboards \
              /var/lib/grafana/dashboards
@@ -45,10 +42,7 @@ EXPOSE 3000
 
 # 헬스체크
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
-
-# Tini를 통한 Graceful Shutdown
-ENTRYPOINT ["/sbin/tini", "--"]
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Grafana 실행
 CMD ["/run.sh"]

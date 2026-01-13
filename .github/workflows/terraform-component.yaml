@@ -78,6 +78,7 @@ jobs:
           terraform plan \
             -var-file="../common.tfvars" \
             -detailed-exitcode \
+            -compact-warnings \
             -out=tfplan \
             2>&1 | tee plan_output.txt
 
@@ -141,7 +142,7 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           echo "Applying ${{ inputs.component }}..."
-          terraform apply -auto-approve tfplan
+          terraform apply -auto-approve -compact-warnings tfplan
 
       # =============================================================================
       # Destroy
@@ -153,6 +154,7 @@ jobs:
           echo "⚠️ Destroying ${{ inputs.component }}..."
           terraform destroy \
             -var-file="../common.tfvars" \
+            -compact-warnings \
             -auto-approve
 
       # =============================================================================
