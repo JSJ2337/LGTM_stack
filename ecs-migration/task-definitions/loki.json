@@ -1,0 +1,68 @@
+{
+  "family": "lgtm-loki",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/lgtmTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "loki",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/lgtm-loki:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3100,
+          "protocol": "tcp",
+          "name": "http"
+        },
+        {
+          "containerPort": 7946,
+          "protocol": "tcp",
+          "name": "memberlist"
+        }
+      ],
+      "environment": [
+        {
+          "name": "AWS_REGION",
+          "value": "ap-northeast-2"
+        },
+        {
+          "name": "LOKI_S3_BUCKET",
+          "value": "sys-lgtm-s3"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/lgtm-loki",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "loki"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 40
+      },
+      "stopTimeout": 120
+    }
+  ],
+  "tags": [
+    {
+      "key": "app",
+      "value": "lgtm-loki"
+    },
+    {
+      "key": "component",
+      "value": "logs-storage"
+    },
+    {
+      "key": "environment",
+      "value": "production"
+    }
+  ]
+}

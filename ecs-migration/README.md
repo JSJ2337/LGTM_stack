@@ -2,7 +2,7 @@
 
 EC2 기반 LGTM 스택을 ECS Fargate로 마이그레이션하기 위한 설정 파일 모음
 
-## 📁 폴더 구조
+## 폴더 구조
 
 ```text
 ecs-migration/
@@ -10,14 +10,15 @@ ecs-migration/
 ├── docs/                        # 문서
 │   ├── architecture.md          # 아키텍처 설계
 │   ├── migration-plan.md        # 마이그레이션 계획
-│   └── troubleshooting.md       # 트러블슈팅 가이드
+│   ├── troubleshooting.md       # 트러블슈팅 가이드
+│   └── work_history/            # 작업 이력
 ├── task-definitions/            # ECS Task Definition
 │   ├── mimir.json
 │   ├── loki.json
 │   ├── tempo.json
 │   ├── pyroscope.json
 │   ├── grafana.json
-│   └── alloy-collector.json
+│   └── alloy.json
 ├── dockerfiles/                 # Dockerfile
 │   ├── mimir/
 │   ├── loki/
@@ -25,122 +26,140 @@ ecs-migration/
 │   ├── pyroscope/
 │   ├── grafana/
 │   └── alloy/
-├── jenkins/                     # Jenkins CI/CD
-│   ├── Jenkinsfile
-│   └── scripts/
-└── terraform/                   # Terraform IaC (선택)
-    ├── main.tf
-    ├── variables.tf
-    └── modules/
+├── .github/workflows/           # GitHub Actions CI/CD
+│   ├── deploy-ecs.yaml          # ECS 배포 워크플로우
+│   ├── terraform.yaml           # Terraform 워크플로우
+│   └── build-only.yaml          # PR 빌드 테스트
+├── terraform/                   # Terraform IaC
+│   ├── modules/
+│   │   ├── ecr/                 # ECR 리포지토리
+│   │   ├── iam/                 # IAM 역할
+│   │   ├── security-groups/     # 보안 그룹
+│   │   ├── cloudmap/            # Service Discovery
+│   │   ├── alb/                 # Application Load Balancer
+│   │   └── ecs/                 # ECS Cluster & Services
+│   └── environments/
+│       └── prod/                # Production 환경
+└── scripts/                     # 유틸리티 스크립트
+    ├── build-all.sh             # 전체 이미지 빌드
+    ├── deploy-ecs.sh            # ECS 배포
+    └── setup-infrastructure.sh  # 인프라 초기 설정
 ```
 
-## 🚀 빠른 시작
+## 빠른 시작
 
-### 1. ECR 리포지토리 생성
+### 1. 인프라 사전 설정
 
 ```bash
-aws ecr create-repository --repository-name lgtm-mimir --region ap-northeast-2
-aws ecr create-repository --repository-name lgtm-loki --region ap-northeast-2
-aws ecr create-repository --repository-name lgtm-tempo --region ap-northeast-2
-aws ecr create-repository --repository-name lgtm-pyroscope --region ap-northeast-2
-aws ecr create-repository --repository-name lgtm-grafana --region ap-northeast-2
-aws ecr create-repository --repository-name lgtm-alloy --region ap-northeast-2
+# ECR, CloudWatch Log Groups, Secrets Manager 생성
+./scripts/setup-infrastructure.sh
 ```
 
-### 2. Docker 이미지 빌드 & 푸시
+### 2. Terraform으로 인프라 생성
 
 ```bash
-# Mimir 예시
-cd dockerfiles/mimir
-docker build -t lgtm-mimir:latest .
-docker tag lgtm-mimir:latest <account-id>.dkr.ecr.ap-northeast-2.amazonaws.com/lgtm-mimir:latest
-aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.ap-northeast-2.amazonaws.com
-docker push <account-id>.dkr.ecr.ap-northeast-2.amazonaws.com/lgtm-mimir:latest
+cd terraform/environments/prod
+
+# terraform.tfvars 설정
+cp terraform.tfvars.example terraform.tfvars
+# terraform.tfvars 수정
+
+# 인프라 생성
+terraform init
+terraform plan
+terraform apply
 ```
 
-### 3. ECS Task Definition 등록
+### 3. Docker 이미지 빌드 및 푸시
 
 ```bash
-aws ecs register-task-definition --cli-input-json file://task-definitions/mimir.json
+./scripts/build-all.sh latest
 ```
 
-### 4. ECS 서비스 생성
+### 4. ECS 서비스 배포
 
 ```bash
-aws ecs create-service \
-  --cluster lgtm-cluster \
-  --service-name mimir \
-  --task-definition lgtm-mimir \
-  --desired-count 3 \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx]}"
+./scripts/deploy-ecs.sh all
 ```
 
-## 📋 마이그레이션 체크리스트
+## GitHub Actions CI/CD
+
+### 자동 배포 (Push to main)
+
+`main` 또는 `lgtm_prd` 브랜치에 푸시하면 자동으로 빌드 및 배포됩니다.
+
+### 수동 배포 (Workflow Dispatch)
+
+GitHub Actions에서 수동으로 특정 컴포넌트만 배포할 수 있습니다.
+
+1. GitHub Repository > Actions > Deploy LGTM Stack to ECS
+2. Run workflow 클릭
+3. 컴포넌트 선택 (all/mimir/loki/tempo/pyroscope/grafana/alloy)
+4. Run workflow 실행
+
+### 필요한 GitHub Secrets
+
+```text
+AWS_ROLE_ARN        # OIDC 인증용 IAM Role ARN
+SLACK_WEBHOOK_URL   # (선택) Slack 알림 URL
+```
+
+## 마이그레이션 체크리스트
 
 ### Phase 1: 준비 (1일)
 
-- [ ] ECR 리포지토리 생성
+- [ ] AWS IAM OIDC Provider 설정 (GitHub Actions용)
+- [ ] ECR 리포지토리 생성 (6개)
 - [ ] VPC, Subnet, Security Group 확인
 - [ ] IAM Role 생성 (TaskExecutionRole, TaskRole)
 - [ ] S3 버킷 권한 확인
+- [ ] Secrets Manager 시크릿 생성
 
-### Phase 2: Dockerfile 작성 (2일)
+### Phase 2: Terraform 인프라 생성 (2일)
 
-- [ ] Mimir Dockerfile
-- [ ] Loki Dockerfile
-- [ ] Tempo Dockerfile
-- [ ] Pyroscope Dockerfile
-- [ ] Grafana Dockerfile
-- [ ] Alloy Dockerfile
+- [ ] terraform.tfvars 설정
+- [ ] terraform plan 검증
+- [ ] terraform apply 실행
+- [ ] ECS Cluster 생성 확인
+- [ ] CloudMap Namespace 생성 확인
+- [ ] ALB 생성 확인
 
-### Phase 3: Task Definition 작성 (2일)
+### Phase 3: Docker 이미지 빌드 (1일)
 
-- [ ] Mimir Task Definition
-- [ ] Loki Task Definition
-- [ ] Tempo Task Definition
-- [ ] Pyroscope Task Definition
-- [ ] Grafana Task Definition
-- [ ] Alloy Task Definition
+- [ ] Mimir 이미지 빌드 및 푸시
+- [ ] Loki 이미지 빌드 및 푸시
+- [ ] Tempo 이미지 빌드 및 푸시
+- [ ] Pyroscope 이미지 빌드 및 푸시
+- [ ] Grafana 이미지 빌드 및 푸시
+- [ ] Alloy 이미지 빌드 및 푸시
 
-### Phase 4: 인프라 구성 (3일)
-
-- [ ] ECS Cluster 생성
-- [ ] AWS CloudMap (Service Discovery) 설정
-- [ ] Application Load Balancer 설정
-- [ ] Target Group 생성
-- [ ] ALB Listener Rule 설정
-
-### Phase 5: 배포 테스트 (2일)
+### Phase 4: 배포 및 테스트 (3일)
 
 - [ ] 각 서비스 배포
 - [ ] Service Discovery 동작 확인
 - [ ] 데이터 수집 테스트
 - [ ] S3 저장 확인
+- [ ] Grafana 대시보드 확인
 
-### Phase 6: Jenkins CI/CD (2일)
+### Phase 5: 트래픽 전환 (1일)
 
-- [ ] Jenkinsfile 작성
-- [ ] ECR 푸시 자동화
-- [ ] ECS 배포 자동화
-- [ ] 파이프라인 테스트
-
-### Phase 7: 트래픽 전환 (1일)
-
-- [ ] Blue/Green 배포 설정
 - [ ] DNS 전환
 - [ ] 모니터링 확인
 - [ ] 롤백 계획 준비
+- [ ] 기존 EC2 백업
 
-## 🔧 주요 설정
+## 주요 설정
 
 ### Fargate 필수 설정
 
-**Memberlist (Mimir/Loki/Tempo):**
+**Memberlist (Mimir/Loki):**
 
 ```yaml
 memberlist:
-  interface_names: ["eth1"]  # Fargate 1.4.0+ 필수
+  bind_addr: "0.0.0.0"
+  bind_port: 7946
+  join_members:
+    - "mimir.lgtm.local:7946"
 ```
 
 **Graceful Shutdown:**
@@ -153,19 +172,17 @@ memberlist:
 
 ### Service Discovery
 
-**CloudMap Namespace:**
-
-- `lgtm.local` (Private DNS)
+**CloudMap Namespace:** `lgtm.local` (Private DNS)
 
 **Service Endpoints:**
 
-- `mimir.lgtm.local:9009`
+- `mimir.lgtm.local:8080`
 - `loki.lgtm.local:3100`
 - `tempo.lgtm.local:3200`
 - `pyroscope.lgtm.local:4040`
 - `grafana.lgtm.local:3000`
 
-## 📊 리소스 할당
+## 리소스 할당
 
 | 컴포넌트 | Task 수 | vCPU | Memory | 월 예상 비용 |
 |----------|---------|------|--------|--------------|
@@ -177,21 +194,22 @@ memberlist:
 | Alloy | 1 | 0.5 | 1GB | ~$25 |
 | **합계** | - | - | - | **~$560/월** |
 
-## 🔗 참고 자료
+## 참고 자료
 
 - [Grafana Loki/Tempo on AWS Fargate](https://grafana.com/blog/2021/08/11/a-guide-to-deploying-grafana-loki-and-grafana-tempo-without-kubernetes-on-aws-fargate/)
 - [Mimir on ECS Fargate Discussion](https://github.com/grafana/mimir/discussions/3807)
 - [AWS Samples: Grafana Stack](https://github.com/aws-samples/sample-grafana-prometheus-stack)
-- [Jenkins + ECR + ECS](https://aws.amazon.com/blogs/devops/set-up-a-build-pipeline-with-jenkins-and-amazon-ecs/)
+- [GitHub Actions OIDC with AWS](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
 
-## ⚠️ 주의사항
+## 주의사항
 
-1. **Fargate는 eBPF 미지원** → Beyla 사용 불가
+1. **Fargate는 eBPF 미지원** - Beyla 사용 불가
 2. **EC2 시스템 메트릭 수집 방법 변경 필요**
-3. **Memberlist interface_names: ["eth1"] 필수**
-4. **stopTimeout 120초 설정으로 Graceful Shutdown 보장**
+3. **Memberlist 설정 필수** - 클러스터링용
+4. **stopTimeout 120초 설정** - Graceful Shutdown 보장
+5. **GitHub Actions OIDC 설정 필요** - CI/CD용
 
 ---
 
-**Last Updated:** 2025-12-10
-**Status:** 준비 단계
+**Last Updated:** 2026-01-13
+**Status:** 구현 완료

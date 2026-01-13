@@ -1,0 +1,160 @@
+// Alloy CloudWatch Collector Configuration for ECS Fargate
+// CloudWatch 메트릭 및 로그 수집
+
+// =============================================================================
+// CloudWatch Metrics Exporter
+// =============================================================================
+prometheus.exporter.cloudwatch "aws_metrics" {
+  sts_region = "ap-northeast-2"
+
+  discovery {
+    type = "AWS/EC2"
+    regions = ["ap-northeast-2"]
+
+    metric {
+      name = "CPUUtilization"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "NetworkIn"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "NetworkOut"
+      statistics = ["Average"]
+      period = "5m"
+    }
+  }
+
+  discovery {
+    type = "AWS/RDS"
+    regions = ["ap-northeast-2"]
+
+    metric {
+      name = "CPUUtilization"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "DatabaseConnections"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "FreeableMemory"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "ReadIOPS"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "WriteIOPS"
+      statistics = ["Average"]
+      period = "5m"
+    }
+  }
+
+  discovery {
+    type = "AWS/ELB"
+    regions = ["ap-northeast-2"]
+
+    metric {
+      name = "RequestCount"
+      statistics = ["Sum"]
+      period = "5m"
+    }
+
+    metric {
+      name = "Latency"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "HTTPCode_ELB_5XX"
+      statistics = ["Sum"]
+      period = "5m"
+    }
+  }
+
+  discovery {
+    type = "AWS/ApplicationELB"
+    regions = ["ap-northeast-2"]
+
+    metric {
+      name = "RequestCount"
+      statistics = ["Sum"]
+      period = "5m"
+    }
+
+    metric {
+      name = "TargetResponseTime"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "HTTPCode_Target_5XX_Count"
+      statistics = ["Sum"]
+      period = "5m"
+    }
+  }
+
+  discovery {
+    type = "AWS/ECS"
+    regions = ["ap-northeast-2"]
+
+    metric {
+      name = "CPUUtilization"
+      statistics = ["Average"]
+      period = "5m"
+    }
+
+    metric {
+      name = "MemoryUtilization"
+      statistics = ["Average"]
+      period = "5m"
+    }
+  }
+}
+
+// =============================================================================
+// Scrape CloudWatch Metrics
+// =============================================================================
+prometheus.scrape "cloudwatch" {
+  targets = prometheus.exporter.cloudwatch.aws_metrics.targets
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "60s"
+}
+
+// =============================================================================
+// Remote Write to Mimir
+// =============================================================================
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = env("MIMIR_URL")
+
+    headers = {
+      "X-Scope-OrgID" = env("MIMIR_TENANT"),
+    }
+  }
+}
+
+// =============================================================================
+// Logging Configuration
+// =============================================================================
+logging {
+  level = "info"
+  format = "logfmt"
+}

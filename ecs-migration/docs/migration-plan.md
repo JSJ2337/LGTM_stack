@@ -395,52 +395,51 @@ dig mimir.lgtm.local @<vpc-dns-server>
 
 ---
 
-## Phase 6: Jenkins CI/CD 구축 (Day 11-12)
+## Phase 6: GitHub Actions CI/CD 구축 (Day 11-12)
 
-### 6.1 Jenkinsfile 작성
+### 6.1 GitHub Actions Workflow 작성
 
 **Pipeline 구조:**
 
 ```bash
 1. Checkout Code
-2. Build Docker Images
-3. Push to ECR
-4. Register Task Definition
-5. Update ECS Service
-6. Wait for Deployment
-7. Health Check
+2. Configure AWS Credentials (OIDC)
+3. Login to Amazon ECR
+4. Build Docker Images (Matrix)
+5. Push to ECR
+6. Update ECS Service
+7. Wait for Deployment
+8. Health Check
 ```
 
-### 6.2 Jenkins 설정
+### 6.2 GitHub Actions 설정
 
-**필요한 Plugin:**
+**필요한 Workflows:**
 
-- AWS Steps Plugin
-- Docker Pipeline Plugin
-- Amazon ECR Plugin
+- `deploy-ecs.yaml` - ECS 배포 워크플로우
+- `terraform.yaml` - Terraform 인프라 관리
+- `build-only.yaml` - PR 빌드 테스트
 
-**Credentials 설정:**
+**GitHub Secrets 설정:**
 
-- AWS Access Key (Jenkins Credentials)
-- ECR Registry (Jenkins Credentials)
+- `AWS_ROLE_ARN` - OIDC 인증용 IAM Role ARN
+- `SLACK_WEBHOOK_URL` - (선택) Slack 알림 URL
 
-### 6.3 파이프라인 테스트
+### 6.3 AWS IAM OIDC Provider 설정
 
-```yaml
-
-# Jenkins Job 생성
-
-# Trigger: GitHub Webhook or Manual
-
-# 테스트 배포 실행
-
+```bash
+# GitHub OIDC Provider 생성
+aws iam create-open-id-connect-provider \
+  --url https://token.actions.githubusercontent.com \
+  --client-id-list sts.amazonaws.com \
+  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
 ```
 
 ### Phase 6 체크리스트
 
-- [ ] Jenkinsfile 작성 완료
-- [ ] Jenkins Plugin 설치
-- [ ] Credentials 설정
+- [ ] GitHub Actions Workflow 작성 완료
+- [ ] AWS IAM OIDC Provider 설정
+- [ ] GitHub Secrets 설정
 - [ ] 파이프라인 테스트 성공
 
 ---
@@ -538,7 +537,7 @@ aws ec2 stop-instances --instance-ids i-xxx
 ### 8.3 팀 교육
 
 - [ ] ECS Fargate 개념 교육
-- [ ] Jenkins CI/CD 사용법 교육
+- [ ] GitHub Actions CI/CD 사용법 교육
 - [ ] 모니터링 방법 교육
 - [ ] 장애 대응 절차 교육
 
@@ -613,9 +612,9 @@ aws ecs update-service \
 
 - [ ] 장애 발생 0건
 - [ ] 데이터 손실 0건
-- [ ] Jenkins CI/CD 파이프라인 성공률 100%
+- [ ] GitHub Actions CI/CD 파이프라인 성공률 100%
 - [ ] 배포 시간 < 10분
 
 ---
 
-**Last Updated:** 2025-12-10
+**Last Updated:** 2026-01-13

@@ -1,0 +1,68 @@
+apiVersion: 1
+
+datasources:
+  # Mimir (Prometheus)
+  - name: Mimir
+    type: prometheus
+    access: proxy
+    url: http://mimir.lgtm.local:8080/prometheus
+    isDefault: true
+    jsonData:
+      httpHeaderName1: X-Scope-OrgID
+    secureJsonData:
+      httpHeaderValue1: ftt-lgtm
+    editable: false
+
+  # Loki (Logs)
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki.lgtm.local:3100
+    jsonData:
+      httpHeaderName1: X-Scope-OrgID
+      derivedFields:
+        - name: TraceID
+          matcherRegex: "traceID=(\\w+)"
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+    secureJsonData:
+      httpHeaderValue1: ftt-lgtm
+    editable: false
+
+  # Tempo (Traces)
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo.lgtm.local:3200
+    uid: tempo
+    jsonData:
+      httpHeaderName1: X-Scope-OrgID
+      tracesToLogs:
+        datasourceUid: loki
+        tags: ['job', 'instance', 'pod', 'namespace']
+        mappedTags: [{ key: 'service.name', value: 'service' }]
+        mapTagNamesEnabled: true
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true
+        filterBySpanID: false
+      tracesToMetrics:
+        datasourceUid: mimir
+        tags: [{ key: 'service.name', value: 'service' }]
+        queries:
+          - name: 'Request rate'
+            query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'
+          - name: 'Error rate'
+            query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags,status_code="STATUS_CODE_ERROR"}[5m]))'
+      serviceMap:
+        datasourceUid: mimir
+    secureJsonData:
+      httpHeaderValue1: ftt-lgtm
+    editable: false
+
+  # Pyroscope (Profiles)
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://pyroscope.lgtm.local:4040
+    editable: false

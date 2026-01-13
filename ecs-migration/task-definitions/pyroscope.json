@@ -1,0 +1,68 @@
+{
+  "family": "lgtm-pyroscope",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/lgtmTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "pyroscope",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/lgtm-pyroscope:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 4040,
+          "protocol": "tcp",
+          "name": "http"
+        },
+        {
+          "containerPort": 4041,
+          "protocol": "tcp",
+          "name": "grpc"
+        }
+      ],
+      "environment": [
+        {
+          "name": "AWS_REGION",
+          "value": "ap-northeast-2"
+        },
+        {
+          "name": "TZ",
+          "value": "Asia/Seoul"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/lgtm-pyroscope",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "pyroscope"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:4040/ready || exit 1"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "stopTimeout": 120
+    }
+  ],
+  "tags": [
+    {
+      "key": "app",
+      "value": "lgtm-pyroscope"
+    },
+    {
+      "key": "component",
+      "value": "profiles-storage"
+    },
+    {
+      "key": "environment",
+      "value": "production"
+    }
+  ]
+}

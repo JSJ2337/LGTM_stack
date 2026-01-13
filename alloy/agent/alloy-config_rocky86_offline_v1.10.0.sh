@@ -92,7 +92,7 @@ INSTANCE_TYPE=$(
   # 2순위: dmidecode (sudo 권한 필요)
   sudo dmidecode -s system-product-name 2>/dev/null | tr ' ' '_' || \
   # 3순위: fallback
-ftt-lgtm-mimir-physical-server"
+  echo "ftt-lgtm-mimir-physical-server"
 )
 HOSTNAME=$(hostname --fqdn 2>/dev/null || hostname)
 LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -1 || echo "127.0.0.1")

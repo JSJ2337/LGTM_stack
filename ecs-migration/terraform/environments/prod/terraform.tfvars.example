@@ -1,0 +1,56 @@
+# LGTM Stack ECS Fargate - Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+
+aws_region     = "ap-northeast-2"
+environment    = "prod"
+vpc_name       = "main-vpc"
+s3_bucket_name = "sys-lgtm-s3"
+
+# ACM Certificate ARN for HTTPS
+certificate_arn = "arn:aws:acm:ap-northeast-2:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Domain name for Grafana
+domain_name = "grafana.example.com"
+
+# CloudMap namespace
+cloudmap_namespace = "lgtm.local"
+
+# Service configuration (optional - uses defaults if not specified)
+# service_config = {
+#   mimir = {
+#     cpu           = 2048
+#     memory        = 4096
+#     desired_count = 3
+#     container_port = 8080
+#   }
+#   loki = {
+#     cpu           = 1024
+#     memory        = 2048
+#     desired_count = 2
+#     container_port = 3100
+#   }
+#   tempo = {
+#     cpu           = 1024
+#     memory        = 2048
+#     desired_count = 1
+#     container_port = 3200
+#   }
+#   pyroscope = {
+#     cpu           = 1024
+#     memory        = 2048
+#     desired_count = 1
+#     container_port = 4040
+#   }
+#   grafana = {
+#     cpu           = 512
+#     memory        = 1024
+#     desired_count = 1
+#     container_port = 3000
+#   }
+#   alloy = {
+#     cpu           = 512
+#     memory        = 1024
+#     desired_count = 1
+#     container_port = 12345
+#   }
+# }

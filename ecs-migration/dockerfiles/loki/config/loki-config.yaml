@@ -1,0 +1,138 @@
+########################
+# Global / Server
+########################
+auth_enabled: true
+
+server:
+  http_listen_port: 3100
+
+########################
+# Common (ring & dirs)
+########################
+common:
+  path_prefix: /ftt-loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: memberlist
+
+########################
+# Memberlist (ECS Fargate)
+########################
+memberlist:
+  bind_addr: "0.0.0.0"
+  bind_port: 7946
+  join_members:
+    - "loki.lgtm.local:7946"
+
+########################
+# Ingester (WAL + 청크 튜닝)
+########################
+ingester:
+  wal:
+    enabled: true
+    dir: /ftt-loki/wal
+    checkpoint_duration: 5m
+    flush_on_shutdown: true
+  chunk_target_size: 1572864
+  chunk_encoding: snappy
+  chunk_idle_period: 2h
+  max_chunk_age: 2h
+
+########################
+# Schema (TSDB + S3)
+########################
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+########################
+# Storage (S3)
+########################
+storage_config:
+  use_thanos_objstore: true
+  object_store:
+    s3:
+      endpoint: s3.ap-northeast-2.amazonaws.com
+      bucket_name: ${LOKI_S3_BUCKET}
+      region: ${AWS_REGION}
+      bucket_lookup_type: path
+    storage_prefix: ftt-loki
+  tsdb_shipper:
+    active_index_directory: /ftt-loki/index
+    cache_location: /ftt-loki/index_cache
+    cache_ttl: 24h
+
+########################
+# Compactor & Limits
+########################
+compactor:
+  working_directory: /ftt-loki/compactor
+  compaction_interval: 5m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 150
+  delete_request_store: s3
+
+########################
+# Table Manager (보존 정책)
+########################
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 8760h
+
+limits_config:
+  ingestion_rate_mb: 25
+  max_global_streams_per_user: 20000
+  reject_old_samples: true
+  reject_old_samples_max_age: 8760h
+  max_query_length: 8760h
+  max_query_lookback: 8760h
+  split_queries_by_interval: 24h
+  query_timeout: 10m
+
+  retention_stream:
+    - selector: '{level="info"}'
+      priority: 10
+      period: 30d
+
+    - selector: '{level="unknown"}'
+      priority: 20
+      period: 3d
+
+    - selector: '{job=~".+", level!~".+"}'
+      priority: 19
+      period: 3d
+
+########################
+# Drilldown 필수 + 전역 한도
+########################
+  allow_structured_metadata: true
+  volume_enabled: true
+  discover_log_levels: true
+
+########################
+# Pattern Ingester
+########################
+pattern_ingester:
+  enabled: true
+
+########################
+# Query-range (캐시 비활성화 - ECS에서는 외부 캐시 사용 권장)
+########################
+query_range:
+  align_queries_with_step: true
+  cache_results: false
+  max_retries: 5
+
+########################
+# Querier
+########################
+querier:
+  multi_tenant_queries_enabled: true
