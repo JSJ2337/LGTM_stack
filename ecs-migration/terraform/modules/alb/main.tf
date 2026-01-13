@@ -1,66 +1,36 @@
-# ALB Module - LGTM Stack
-
-variable "vpc_id" {
-  description = "VPC ID"
-  type        = string
-}
-
-variable "public_subnet_ids" {
-  description = "Public subnet IDs"
-  type        = list(string)
-}
-
-variable "security_group_id" {
-  description = "ALB security group ID"
-  type        = string
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
-variable "certificate_arn" {
-  description = "ACM certificate ARN (optional - leave empty for HTTP only)"
-  type        = string
-  default     = ""
-}
-
-variable "domain_name" {
-  description = "Domain name for Grafana (optional)"
-  type        = string
-  default     = ""
-}
+# =============================================================================
+# ALB Module - Resources
+# =============================================================================
 
 locals {
   enable_https = var.certificate_arn != ""
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Application Load Balancer
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_lb" "main" {
-  name               = "lgtm-${var.environment}-alb"
-  internal           = false
+  name               = "${var.project_name}-${var.environment}-alb"
+  internal           = var.internal
   load_balancer_type = "application"
   security_groups    = [var.security_group_id]
   subnets            = var.public_subnet_ids
 
-  enable_deletion_protection = false
+  enable_deletion_protection = var.enable_deletion_protection
 
-  tags = {
-    Name        = "lgtm-${var.environment}-alb"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-alb"
     Environment = var.environment
-  }
+  })
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Target Groups
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_lb_target_group" "grafana" {
-  name        = "lgtm-${var.environment}-grafana-tg"
+  name        = "${var.project_name}-${var.environment}-grafana-tg"
   port        = 3000
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -68,22 +38,22 @@ resource "aws_lb_target_group" "grafana" {
 
   health_check {
     enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
+    healthy_threshold   = var.health_check_config.healthy_threshold
+    unhealthy_threshold = var.health_check_config.unhealthy_threshold
+    timeout             = var.health_check_config.timeout
+    interval            = var.health_check_config.interval
     path                = "/api/health"
     matcher             = "200"
   }
 
-  tags = {
-    Name        = "lgtm-${var.environment}-grafana-tg"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-grafana-tg"
     Environment = var.environment
-  }
+  })
 }
 
 resource "aws_lb_target_group" "mimir" {
-  name        = "lgtm-${var.environment}-mimir-tg"
+  name        = "${var.project_name}-${var.environment}-mimir-tg"
   port        = 8080
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -91,22 +61,22 @@ resource "aws_lb_target_group" "mimir" {
 
   health_check {
     enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
+    healthy_threshold   = var.health_check_config.healthy_threshold
+    unhealthy_threshold = var.health_check_config.unhealthy_threshold
+    timeout             = var.health_check_config.timeout
+    interval            = var.health_check_config.interval
     path                = "/-/ready"
     matcher             = "200"
   }
 
-  tags = {
-    Name        = "lgtm-${var.environment}-mimir-tg"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-mimir-tg"
     Environment = var.environment
-  }
+  })
 }
 
 resource "aws_lb_target_group" "loki" {
-  name        = "lgtm-${var.environment}-loki-tg"
+  name        = "${var.project_name}-${var.environment}-loki-tg"
   port        = 3100
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -114,22 +84,22 @@ resource "aws_lb_target_group" "loki" {
 
   health_check {
     enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
+    healthy_threshold   = var.health_check_config.healthy_threshold
+    unhealthy_threshold = var.health_check_config.unhealthy_threshold
+    timeout             = var.health_check_config.timeout
+    interval            = var.health_check_config.interval
     path                = "/ready"
     matcher             = "200"
   }
 
-  tags = {
-    Name        = "lgtm-${var.environment}-loki-tg"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-loki-tg"
     Environment = var.environment
-  }
+  })
 }
 
 resource "aws_lb_target_group" "tempo" {
-  name        = "lgtm-${var.environment}-tempo-tg"
+  name        = "${var.project_name}-${var.environment}-tempo-tg"
   port        = 3200
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -137,25 +107,24 @@ resource "aws_lb_target_group" "tempo" {
 
   health_check {
     enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
+    healthy_threshold   = var.health_check_config.healthy_threshold
+    unhealthy_threshold = var.health_check_config.unhealthy_threshold
+    timeout             = var.health_check_config.timeout
+    interval            = var.health_check_config.interval
     path                = "/ready"
     matcher             = "200"
   }
 
-  tags = {
-    Name        = "lgtm-${var.environment}-tempo-tg"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-tempo-tg"
     Environment = var.environment
-  }
+  })
 }
 
-# =============================================================================
-# Listeners
-# =============================================================================
-
+# -----------------------------------------------------------------------------
 # HTTP Listener
+# -----------------------------------------------------------------------------
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -177,7 +146,10 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# -----------------------------------------------------------------------------
 # HTTPS Listener (only if certificate is provided)
+# -----------------------------------------------------------------------------
+
 resource "aws_lb_listener" "https" {
   count = local.enable_https ? 1 : 0
 
@@ -193,9 +165,9 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Listener Rules (HTTP - only when HTTPS is disabled)
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_lb_listener_rule" "mimir_http" {
   count = local.enable_https ? 0 : 1
@@ -251,9 +223,9 @@ resource "aws_lb_listener_rule" "tempo_http" {
   }
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Listener Rules (HTTPS - only when certificate is provided)
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_lb_listener_rule" "mimir_https" {
   count = local.enable_https ? 1 : 0
@@ -307,43 +279,4 @@ resource "aws_lb_listener_rule" "tempo_https" {
       values = ["/api/traces", "/v1/traces"]
     }
   }
-}
-
-# =============================================================================
-# Outputs
-# =============================================================================
-
-output "dns_name" {
-  description = "ALB DNS name"
-  value       = aws_lb.main.dns_name
-}
-
-output "zone_id" {
-  description = "ALB zone ID"
-  value       = aws_lb.main.zone_id
-}
-
-output "arn" {
-  description = "ALB ARN"
-  value       = aws_lb.main.arn
-}
-
-output "grafana_target_group_arn" {
-  description = "Grafana target group ARN"
-  value       = aws_lb_target_group.grafana.arn
-}
-
-output "mimir_target_group_arn" {
-  description = "Mimir target group ARN"
-  value       = aws_lb_target_group.mimir.arn
-}
-
-output "loki_target_group_arn" {
-  description = "Loki target group ARN"
-  value       = aws_lb_target_group.loki.arn
-}
-
-output "tempo_target_group_arn" {
-  description = "Tempo target group ARN"
-  value       = aws_lb_target_group.tempo.arn
 }

@@ -1,50 +1,10 @@
 # =============================================================================
-# VPC Module for LGTM Stack
+# VPC Module - Resources
 # =============================================================================
 
-variable "project_name" {
-  description = "Project name"
-  type        = string
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
-variable "vpc_cidr" {
-  description = "VPC CIDR block"
-  type        = string
-  default     = "10.0.0.0/16"
-}
-
-variable "availability_zones" {
-  description = "List of availability zones"
-  type        = list(string)
-  default     = ["ap-northeast-2a", "ap-northeast-2c"]
-}
-
-variable "public_subnet_cidrs" {
-  description = "Public subnet CIDR blocks"
-  type        = list(string)
-  default     = ["10.0.1.0/24", "10.0.2.0/24"]
-}
-
-variable "private_subnet_cidrs" {
-  description = "Private subnet CIDR blocks"
-  type        = list(string)
-  default     = ["10.0.11.0/24", "10.0.12.0/24"]
-}
-
-variable "tags" {
-  description = "Additional tags"
-  type        = map(string)
-  default     = {}
-}
-
-# =============================================================================
+# -----------------------------------------------------------------------------
 # VPC
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
@@ -56,9 +16,9 @@ resource "aws_vpc" "main" {
   })
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Internet Gateway
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
@@ -68,9 +28,9 @@ resource "aws_internet_gateway" "main" {
   })
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Public Subnets
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_subnet" "public" {
   count = length(var.public_subnet_cidrs)
@@ -86,9 +46,9 @@ resource "aws_subnet" "public" {
   })
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Private Subnets
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_subnet" "private" {
   count = length(var.private_subnet_cidrs)
@@ -103,9 +63,9 @@ resource "aws_subnet" "private" {
   })
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Elastic IPs for NAT Gateway
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_eip" "nat" {
   count  = length(var.public_subnet_cidrs)
@@ -118,9 +78,9 @@ resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # NAT Gateways
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_nat_gateway" "main" {
   count = length(var.public_subnet_cidrs)
@@ -135,9 +95,9 @@ resource "aws_nat_gateway" "main" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Public Route Table
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
@@ -159,9 +119,9 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Private Route Tables
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_route_table" "private" {
   count = length(var.private_subnet_cidrs)
@@ -183,38 +143,4 @@ resource "aws_route_table_association" "private" {
 
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
-}
-
-# =============================================================================
-# Outputs
-# =============================================================================
-
-output "vpc_id" {
-  description = "VPC ID"
-  value       = aws_vpc.main.id
-}
-
-output "vpc_cidr" {
-  description = "VPC CIDR block"
-  value       = aws_vpc.main.cidr_block
-}
-
-output "public_subnet_ids" {
-  description = "Public subnet IDs"
-  value       = aws_subnet.public[*].id
-}
-
-output "private_subnet_ids" {
-  description = "Private subnet IDs"
-  value       = aws_subnet.private[*].id
-}
-
-output "nat_gateway_ips" {
-  description = "NAT Gateway public IPs"
-  value       = aws_eip.nat[*].public_ip
-}
-
-output "internet_gateway_id" {
-  description = "Internet Gateway ID"
-  value       = aws_internet_gateway.main.id
 }

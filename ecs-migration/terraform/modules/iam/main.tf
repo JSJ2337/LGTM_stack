@@ -1,18 +1,10 @@
-# IAM Module - LGTM Stack
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
-variable "s3_bucket_name" {
-  description = "S3 bucket name for LGTM data"
-  type        = string
-}
-
 # =============================================================================
-# Task Execution Role (ECR pull, CloudWatch Logs)
+# IAM Module - Resources
 # =============================================================================
+
+# -----------------------------------------------------------------------------
+# Assume Role Policy (ECS Tasks)
+# -----------------------------------------------------------------------------
 
 data "aws_iam_policy_document" "ecs_assume_role" {
   statement {
@@ -25,14 +17,18 @@ data "aws_iam_policy_document" "ecs_assume_role" {
   }
 }
 
+# -----------------------------------------------------------------------------
+# Task Execution Role (ECR pull, CloudWatch Logs)
+# -----------------------------------------------------------------------------
+
 resource "aws_iam_role" "task_execution" {
-  name               = "lgtm-${var.environment}-task-execution-role"
+  name               = "${var.project_name}-${var.environment}-task-execution-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
 
-  tags = {
-    Name        = "lgtm-${var.environment}-task-execution-role"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-task-execution-role"
     Environment = var.environment
-  }
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "task_execution" {
@@ -40,7 +36,6 @@ resource "aws_iam_role_policy_attachment" "task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Secrets Manager 접근 권한 추가
 resource "aws_iam_role_policy" "task_execution_secrets" {
   name = "secrets-access"
   role = aws_iam_role.task_execution.id
@@ -59,18 +54,18 @@ resource "aws_iam_role_policy" "task_execution_secrets" {
   })
 }
 
-# =============================================================================
-# LGTM Task Role (S3 Access)
-# =============================================================================
+# -----------------------------------------------------------------------------
+# LGTM Task Role (S3 Access - Mimir, Loki, Tempo, Pyroscope)
+# -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "lgtm_task" {
-  name               = "lgtm-${var.environment}-task-role"
+  name               = "${var.project_name}-${var.environment}-task-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
 
-  tags = {
-    Name        = "lgtm-${var.environment}-task-role"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-task-role"
     Environment = var.environment
-  }
+  })
 }
 
 resource "aws_iam_role_policy" "lgtm_s3_access" {
@@ -97,18 +92,18 @@ resource "aws_iam_role_policy" "lgtm_s3_access" {
   })
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Alloy Task Role (CloudWatch Access)
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "alloy_task" {
-  name               = "lgtm-${var.environment}-alloy-task-role"
+  name               = "${var.project_name}-${var.environment}-alloy-task-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
 
-  tags = {
-    Name        = "lgtm-${var.environment}-alloy-task-role"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-alloy-task-role"
     Environment = var.environment
-  }
+  })
 }
 
 resource "aws_iam_role_policy" "alloy_cloudwatch_access" {
@@ -141,55 +136,16 @@ resource "aws_iam_role_policy" "alloy_cloudwatch_access" {
   })
 }
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # Grafana Task Role
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "grafana_task" {
-  name               = "lgtm-${var.environment}-grafana-task-role"
+  name               = "${var.project_name}-${var.environment}-grafana-task-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
 
-  tags = {
-    Name        = "lgtm-${var.environment}-grafana-task-role"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-grafana-task-role"
     Environment = var.environment
-  }
-}
-
-# =============================================================================
-# Outputs
-# =============================================================================
-
-output "task_execution_role_arn" {
-  description = "Task execution role ARN"
-  value       = aws_iam_role.task_execution.arn
-}
-
-output "mimir_task_role_arn" {
-  description = "Mimir task role ARN"
-  value       = aws_iam_role.lgtm_task.arn
-}
-
-output "loki_task_role_arn" {
-  description = "Loki task role ARN"
-  value       = aws_iam_role.lgtm_task.arn
-}
-
-output "tempo_task_role_arn" {
-  description = "Tempo task role ARN"
-  value       = aws_iam_role.lgtm_task.arn
-}
-
-output "pyroscope_task_role_arn" {
-  description = "Pyroscope task role ARN"
-  value       = aws_iam_role.lgtm_task.arn
-}
-
-output "grafana_task_role_arn" {
-  description = "Grafana task role ARN"
-  value       = aws_iam_role.grafana_task.arn
-}
-
-output "alloy_task_role_arn" {
-  description = "Alloy task role ARN"
-  value       = aws_iam_role.alloy_task.arn
+  })
 }

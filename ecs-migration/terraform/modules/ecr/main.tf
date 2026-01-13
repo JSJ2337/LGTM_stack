@@ -1,37 +1,35 @@
-# ECR Module - LGTM Stack
+# =============================================================================
+# ECR Module - Resources
+# =============================================================================
 
-variable "repositories" {
-  description = "List of ECR repository names"
-  type        = list(string)
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
+# -----------------------------------------------------------------------------
 # ECR Repositories
+# -----------------------------------------------------------------------------
+
 resource "aws_ecr_repository" "repos" {
   for_each = toset(var.repositories)
 
   name                 = each.value
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = var.image_tag_mutability
 
   image_scanning_configuration {
-    scan_on_push = true
+    scan_on_push = var.scan_on_push
   }
 
   encryption_configuration {
     encryption_type = "AES256"
   }
 
-  tags = {
+  tags = merge(var.tags, {
     Name        = each.value
     Environment = var.environment
-  }
+  })
 }
 
-# Lifecycle Policy (7일 이상된 untagged 이미지 삭제)
+# -----------------------------------------------------------------------------
+# Lifecycle Policy
+# -----------------------------------------------------------------------------
+
 resource "aws_ecr_lifecycle_policy" "cleanup" {
   for_each   = toset(var.repositories)
   repository = aws_ecr_repository.repos[each.key].name
@@ -40,12 +38,12 @@ resource "aws_ecr_lifecycle_policy" "cleanup" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep last 10 tagged images"
+        description  = "Keep last ${var.lifecycle_policy_keep_count} tagged images"
         selection = {
           tagStatus     = "tagged"
           tagPrefixList = ["v", "release"]
           countType     = "imageCountMoreThan"
-          countNumber   = 10
+          countNumber   = var.lifecycle_policy_keep_count
         }
         action = {
           type = "expire"
@@ -53,12 +51,12 @@ resource "aws_ecr_lifecycle_policy" "cleanup" {
       },
       {
         rulePriority = 2
-        description  = "Remove untagged images older than 7 days"
+        description  = "Remove untagged images older than ${var.lifecycle_policy_untagged_days} days"
         selection = {
           tagStatus   = "untagged"
           countType   = "sinceImagePushed"
           countUnit   = "days"
-          countNumber = 7
+          countNumber = var.lifecycle_policy_untagged_days
         }
         action = {
           type = "expire"
@@ -66,15 +64,4 @@ resource "aws_ecr_lifecycle_policy" "cleanup" {
       }
     ]
   })
-}
-
-# Outputs
-output "repository_urls" {
-  description = "ECR repository URLs"
-  value       = { for k, v in aws_ecr_repository.repos : k => v.repository_url }
-}
-
-output "repository_arns" {
-  description = "ECR repository ARNs"
-  value       = { for k, v in aws_ecr_repository.repos : k => v.arn }
 }

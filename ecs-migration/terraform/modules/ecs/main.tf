@@ -1,88 +1,9 @@
-# ECS Module - LGTM Stack
+# =============================================================================
+# ECS Module - Resources
+# =============================================================================
 
-variable "environment" {
-  type = string
-}
-
-variable "vpc_id" {
-  type = string
-}
-
-variable "private_subnet_ids" {
-  type = list(string)
-}
-
-variable "security_group_id" {
-  type = string
-}
-
-variable "execution_role_arn" {
-  type = string
-}
-
-variable "cloudmap_namespace_id" {
-  type = string
-}
-
-variable "ecr_repository_urls" {
-  type = map(string)
-}
-
-variable "aws_account_id" {
-  type = string
-}
-
-variable "aws_region" {
-  type = string
-}
-
-variable "mimir_task_role_arn" {
-  type = string
-}
-
-variable "loki_task_role_arn" {
-  type = string
-}
-
-variable "tempo_task_role_arn" {
-  type = string
-}
-
-variable "pyroscope_task_role_arn" {
-  type = string
-}
-
-variable "grafana_task_role_arn" {
-  type = string
-}
-
-variable "alloy_task_role_arn" {
-  type = string
-}
-
-variable "mimir_target_group_arn" {
-  type = string
-}
-
-variable "loki_target_group_arn" {
-  type = string
-}
-
-variable "tempo_target_group_arn" {
-  type = string
-}
-
-variable "grafana_target_group_arn" {
-  type = string
-}
-
-variable "service_config" {
-  type = map(object({
-    cpu            = number
-    memory         = number
-    desired_count  = number
-    container_port = number
-  }))
+locals {
+  services = ["mimir", "loki", "tempo", "pyroscope", "grafana", "alloy"]
 }
 
 # =============================================================================
@@ -90,17 +11,17 @@ variable "service_config" {
 # =============================================================================
 
 resource "aws_ecs_cluster" "main" {
-  name = "lgtm-${var.environment}-cluster"
+  name = "${var.project_name}-${var.environment}-cluster"
 
   setting {
     name  = "containerInsights"
     value = "enabled"
   }
 
-  tags = {
-    Name        = "lgtm-${var.environment}-cluster"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-cluster"
     Environment = var.environment
-  }
+  })
 }
 
 resource "aws_ecs_cluster_capacity_providers" "main" {
@@ -125,15 +46,15 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 # =============================================================================
 
 resource "aws_cloudwatch_log_group" "services" {
-  for_each = toset(["mimir", "loki", "tempo", "pyroscope", "grafana", "alloy"])
+  for_each = toset(local.services)
 
-  name              = "/ecs/lgtm-${each.key}"
-  retention_in_days = 7
+  name              = "/ecs/${var.project_name}-${each.key}"
+  retention_in_days = var.log_retention_days
 
-  tags = {
-    Name        = "/ecs/lgtm-${each.key}"
+  tags = merge(var.tags, {
+    Name        = "/ecs/${var.project_name}-${each.key}"
     Environment = var.environment
-  }
+  })
 }
 
 # =============================================================================
@@ -142,7 +63,7 @@ resource "aws_cloudwatch_log_group" "services" {
 
 # Mimir Task Definition
 resource "aws_ecs_task_definition" "mimir" {
-  family                   = "lgtm-mimir"
+  family                   = "${var.project_name}-mimir"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.service_config.mimir.cpu
@@ -164,13 +85,13 @@ resource "aws_ecs_task_definition" "mimir" {
 
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
-        { name = "MIMIR_S3_BUCKET", value = "sys-lgtm-s3" }
+        { name = "MIMIR_S3_BUCKET", value = var.s3_bucket_name }
       ]
 
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/lgtm-mimir"
+          "awslogs-group"         = "/ecs/${var.project_name}-mimir"
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "mimir"
         }
@@ -188,15 +109,15 @@ resource "aws_ecs_task_definition" "mimir" {
     }
   ])
 
-  tags = {
-    Name        = "lgtm-mimir"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-mimir"
     Environment = var.environment
-  }
+  })
 }
 
 # Loki Task Definition
 resource "aws_ecs_task_definition" "loki" {
-  family                   = "lgtm-loki"
+  family                   = "${var.project_name}-loki"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.service_config.loki.cpu
@@ -217,13 +138,13 @@ resource "aws_ecs_task_definition" "loki" {
 
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
-        { name = "LOKI_S3_BUCKET", value = "sys-lgtm-s3" }
+        { name = "LOKI_S3_BUCKET", value = var.s3_bucket_name }
       ]
 
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/lgtm-loki"
+          "awslogs-group"         = "/ecs/${var.project_name}-loki"
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "loki"
         }
@@ -241,15 +162,15 @@ resource "aws_ecs_task_definition" "loki" {
     }
   ])
 
-  tags = {
-    Name        = "lgtm-loki"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-loki"
     Environment = var.environment
-  }
+  })
 }
 
 # Tempo Task Definition
 resource "aws_ecs_task_definition" "tempo" {
-  family                   = "lgtm-tempo"
+  family                   = "${var.project_name}-tempo"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.service_config.tempo.cpu
@@ -276,7 +197,7 @@ resource "aws_ecs_task_definition" "tempo" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/lgtm-tempo"
+          "awslogs-group"         = "/ecs/${var.project_name}-tempo"
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "tempo"
         }
@@ -294,15 +215,15 @@ resource "aws_ecs_task_definition" "tempo" {
     }
   ])
 
-  tags = {
-    Name        = "lgtm-tempo"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-tempo"
     Environment = var.environment
-  }
+  })
 }
 
 # Pyroscope Task Definition
 resource "aws_ecs_task_definition" "pyroscope" {
-  family                   = "lgtm-pyroscope"
+  family                   = "${var.project_name}-pyroscope"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.service_config.pyroscope.cpu
@@ -329,7 +250,7 @@ resource "aws_ecs_task_definition" "pyroscope" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/lgtm-pyroscope"
+          "awslogs-group"         = "/ecs/${var.project_name}-pyroscope"
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "pyroscope"
         }
@@ -347,15 +268,15 @@ resource "aws_ecs_task_definition" "pyroscope" {
     }
   ])
 
-  tags = {
-    Name        = "lgtm-pyroscope"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-pyroscope"
     Environment = var.environment
-  }
+  })
 }
 
 # Grafana Task Definition
 resource "aws_ecs_task_definition" "grafana" {
-  family                   = "lgtm-grafana"
+  family                   = "${var.project_name}-grafana"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.service_config.grafana.cpu
@@ -391,7 +312,7 @@ resource "aws_ecs_task_definition" "grafana" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/lgtm-grafana"
+          "awslogs-group"         = "/ecs/${var.project_name}-grafana"
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "grafana"
         }
@@ -409,15 +330,15 @@ resource "aws_ecs_task_definition" "grafana" {
     }
   ])
 
-  tags = {
-    Name        = "lgtm-grafana"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-grafana"
     Environment = var.environment
-  }
+  })
 }
 
 # Alloy Task Definition
 resource "aws_ecs_task_definition" "alloy" {
-  family                   = "lgtm-alloy"
+  family                   = "${var.project_name}-alloy"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.service_config.alloy.cpu
@@ -446,7 +367,7 @@ resource "aws_ecs_task_definition" "alloy" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/lgtm-alloy"
+          "awslogs-group"         = "/ecs/${var.project_name}-alloy"
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "alloy"
         }
@@ -464,10 +385,10 @@ resource "aws_ecs_task_definition" "alloy" {
     }
   ])
 
-  tags = {
-    Name        = "lgtm-alloy"
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-alloy"
     Environment = var.environment
-  }
+  })
 }
 
 # =============================================================================
@@ -491,20 +412,32 @@ resource "aws_ecs_service" "mimir" {
   load_balancer {
     target_group_arn = var.mimir_target_group_arn
     container_name   = "mimir"
-    container_port   = 8080
+    container_port   = var.service_config.mimir.container_port
   }
 
-  deployment_maximum_percent         = 200
-  deployment_minimum_healthy_percent = 100
+  service_registries {
+    registry_arn = aws_service_discovery_service.mimir.arn
+  }
 
-  tags = {
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = merge(var.tags, {
     Name        = "mimir"
     Environment = var.environment
-  }
+  })
 
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Loki Service
@@ -524,20 +457,32 @@ resource "aws_ecs_service" "loki" {
   load_balancer {
     target_group_arn = var.loki_target_group_arn
     container_name   = "loki"
-    container_port   = 3100
+    container_port   = var.service_config.loki.container_port
   }
 
-  deployment_maximum_percent         = 200
-  deployment_minimum_healthy_percent = 100
+  service_registries {
+    registry_arn = aws_service_discovery_service.loki.arn
+  }
 
-  tags = {
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = merge(var.tags, {
     Name        = "loki"
     Environment = var.environment
-  }
+  })
 
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Tempo Service
@@ -557,20 +502,32 @@ resource "aws_ecs_service" "tempo" {
   load_balancer {
     target_group_arn = var.tempo_target_group_arn
     container_name   = "tempo"
-    container_port   = 3200
+    container_port   = var.service_config.tempo.container_port
   }
 
-  deployment_maximum_percent         = 200
-  deployment_minimum_healthy_percent = 100
+  service_registries {
+    registry_arn = aws_service_discovery_service.tempo.arn
+  }
 
-  tags = {
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = merge(var.tags, {
     Name        = "tempo"
     Environment = var.environment
-  }
+  })
 
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Pyroscope Service
@@ -587,17 +544,29 @@ resource "aws_ecs_service" "pyroscope" {
     assign_public_ip = false
   }
 
-  deployment_maximum_percent         = 200
-  deployment_minimum_healthy_percent = 100
+  service_registries {
+    registry_arn = aws_service_discovery_service.pyroscope.arn
+  }
 
-  tags = {
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = merge(var.tags, {
     Name        = "pyroscope"
     Environment = var.environment
-  }
+  })
 
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Grafana Service
@@ -617,20 +586,32 @@ resource "aws_ecs_service" "grafana" {
   load_balancer {
     target_group_arn = var.grafana_target_group_arn
     container_name   = "grafana"
-    container_port   = 3000
+    container_port   = var.service_config.grafana.container_port
   }
 
-  deployment_maximum_percent         = 200
-  deployment_minimum_healthy_percent = 100
+  service_registries {
+    registry_arn = aws_service_discovery_service.grafana.arn
+  }
 
-  tags = {
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = merge(var.tags, {
     Name        = "grafana"
     Environment = var.environment
-  }
+  })
 
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Alloy Service
@@ -647,29 +628,133 @@ resource "aws_ecs_service" "alloy" {
     assign_public_ip = false
   }
 
-  deployment_maximum_percent         = 200
-  deployment_minimum_healthy_percent = 100
+  service_registries {
+    registry_arn = aws_service_discovery_service.alloy.arn
+  }
 
-  tags = {
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = merge(var.tags, {
     Name        = "alloy"
     Environment = var.environment
-  }
+  })
 
   lifecycle {
     ignore_changes = [desired_count]
   }
+
+  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # =============================================================================
-# Outputs
+# Service Discovery (CloudMap Integration)
 # =============================================================================
 
-output "cluster_name" {
-  description = "ECS Cluster name"
-  value       = aws_ecs_cluster.main.name
+resource "aws_service_discovery_service" "mimir" {
+  name = "mimir"
+
+  dns_config {
+    namespace_id = var.cloudmap_namespace_id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {}
 }
 
-output "cluster_arn" {
-  description = "ECS Cluster ARN"
-  value       = aws_ecs_cluster.main.arn
+resource "aws_service_discovery_service" "loki" {
+  name = "loki"
+
+  dns_config {
+    namespace_id = var.cloudmap_namespace_id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {}
+}
+
+resource "aws_service_discovery_service" "tempo" {
+  name = "tempo"
+
+  dns_config {
+    namespace_id = var.cloudmap_namespace_id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {}
+}
+
+resource "aws_service_discovery_service" "pyroscope" {
+  name = "pyroscope"
+
+  dns_config {
+    namespace_id = var.cloudmap_namespace_id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {}
+}
+
+resource "aws_service_discovery_service" "grafana" {
+  name = "grafana"
+
+  dns_config {
+    namespace_id = var.cloudmap_namespace_id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {}
+}
+
+resource "aws_service_discovery_service" "alloy" {
+  name = "alloy"
+
+  dns_config {
+    namespace_id = var.cloudmap_namespace_id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {}
 }
