@@ -17,9 +17,11 @@ project_name = "lgtm"
 
 # -----------------------------------------------------------------------------
 # Terraform State Backend 설정
+# terraform init -backend-config="bucket=$state_bucket" ... 로 사용
 # -----------------------------------------------------------------------------
 
-state_bucket = "jsj-lgtm-terraform-state"
+state_bucket       = "jsj-lgtm-terraform-state"
+state_lock_table   = "jsj-lgtm-terraform-locks"
 
 # -----------------------------------------------------------------------------
 # 공통 태그

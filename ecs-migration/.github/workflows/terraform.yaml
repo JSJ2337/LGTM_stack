@@ -1,5 +1,6 @@
 # LGTM Stack Terraform Infrastructure Pipeline
 # GitHub Actions Workflow for Terraform infrastructure management
+# 컴포넌트별 순차 실행 방식 (종속성 순서 준수)
 
 name: Terraform Infrastructure
 
@@ -30,176 +31,245 @@ on:
           - plan
           - apply
           - destroy
-      auto_approve:
-        description: '자동 승인'
-        required: false
-        default: false
-        type: boolean
+      component:
+        description: '대상 컴포넌트 (all = 전체)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - 01-vpc
+          - 05-cloudwatch-logs
+          - 10-ecr
+          - 20-iam
+          - 30-security-groups
+          - 40-cloudmap
+          - 50-alb
+          - 60-ecs
 
 env:
   AWS_REGION: ap-northeast-2
-  TF_WORKING_DIR: ecs-migration/terraform/environments/prod
+  TF_BASE_DIR: ecs-migration/terraform/environments/prod
   TF_VERSION: '1.13.5'
+  # 종속성 순서대로 나열 (병렬 가능한 것들은 같은 단계)
+  # Stage 1: VPC, CloudWatch-Logs, ECR, IAM (병렬)
+  # Stage 2: Security-Groups, CloudMap (VPC 종속)
+  # Stage 3: ALB (VPC, Security-Groups 종속)
+  # Stage 4: ECS (전체 종속)
 
 jobs:
   # =============================================================================
-  # Terraform Plan
+  # Detect Changes - 변경된 컴포넌트 감지
   # =============================================================================
-  plan:
-    name: Terraform Plan
+  detect-changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: write
-
     outputs:
-      plan_exitcode: ${{ steps.plan.outputs.exitcode }}
-
+      components: ${{ steps.detect.outputs.components }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          fetch-depth: 2
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init -upgrade
-
-      - name: Terraform Validate
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform validate
-
-      - name: Terraform Plan
-        id: plan
-        working-directory: ${{ env.TF_WORKING_DIR }}
+      - name: Detect Changed Components
+        id: detect
         run: |
-          terraform plan \
-            -detailed-exitcode \
-            -out=tfplan \
-            2>&1 | tee plan_output.txt
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.component }}" == "all" ]; then
+              echo 'components=["01-vpc","05-cloudwatch-logs","10-ecr","20-iam","30-security-groups","40-cloudmap","50-alb","60-ecs"]' >> $GITHUB_OUTPUT
+            else
+              echo 'components=["${{ github.event.inputs.component }}"]' >> $GITHUB_OUTPUT
+            fi
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            # 변경된 파일 기반으로 컴포넌트 감지
+            CHANGED_DIRS=$(git diff --name-only HEAD~1 HEAD -- 'ecs-migration/terraform/' | \
+              grep -oP 'environments/prod/\K[0-9]+-[a-z-]+' | sort -u | tr '\n' ',' | sed 's/,$//')
 
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
-        continue-on-error: true
-
-      - name: Upload Plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: |
-            ${{ env.TF_WORKING_DIR }}/tfplan
-            ${{ env.TF_WORKING_DIR }}/plan_output.txt
-
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const planOutput = fs.readFileSync('${{ env.TF_WORKING_DIR }}/plan_output.txt', 'utf8');
-
-            const output = `## Terraform Plan Output
-
-            \`\`\`hcl
-            ${planOutput.substring(0, 65000)}
-            \`\`\`
-
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            });
+            if [ -z "$CHANGED_DIRS" ]; then
+              echo "components=[]" >> $GITHUB_OUTPUT
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+            else
+              # JSON 배열 형식으로 변환
+              COMPONENTS=$(echo "$CHANGED_DIRS" | tr ',' '\n' | jq -R . | jq -s .)
+              echo "components=$COMPONENTS" >> $GITHUB_OUTPUT
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+            fi
+          fi
 
   # =============================================================================
-  # Terraform Apply
+  # Stage 1: 독립 컴포넌트 (병렬 실행)
   # =============================================================================
-  apply:
-    name: Terraform Apply
-    runs-on: ubuntu-latest
-    needs: plan
+  stage1-vpc:
+    name: "Stage 1: VPC"
+    needs: detect-changes
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '01-vpc') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '30-security-groups') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '40-cloudmap') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 01-vpc
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
 
-    permissions:
-      id-token: write
-      contents: read
+  stage1-cloudwatch-logs:
+    name: "Stage 1: CloudWatch Logs"
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '05-cloudwatch-logs') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 05-cloudwatch-logs
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  stage1-ecr:
+    name: "Stage 1: ECR"
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '10-ecr') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 10-ecr
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Download Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: ${{ env.TF_WORKING_DIR }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init -upgrade
-
-      - name: Terraform Apply
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve tfplan
+  stage1-iam:
+    name: "Stage 1: IAM"
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '20-iam') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 20-iam
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
 
   # =============================================================================
-  # Terraform Destroy
+  # Stage 2: VPC 종속 컴포넌트
   # =============================================================================
-  destroy:
-    name: Terraform Destroy
+  stage2-security-groups:
+    name: "Stage 2: Security Groups"
+    needs: [detect-changes, stage1-vpc]
+    if: >-
+      always() &&
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '30-security-groups') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 30-security-groups
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
+
+  stage2-cloudmap:
+    name: "Stage 2: CloudMap"
+    needs: [detect-changes, stage1-vpc]
+    if: >-
+      always() &&
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '40-cloudmap') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 40-cloudmap
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
+
+  # =============================================================================
+  # Stage 3: ALB (VPC + Security Groups 종속)
+  # =============================================================================
+  stage3-alb:
+    name: "Stage 3: ALB"
+    needs: [detect-changes, stage1-vpc, stage2-security-groups]
+    if: >-
+      always() &&
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage2-security-groups.result == 'success' || needs.stage2-security-groups.result == 'skipped') &&
+      (contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
+       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 50-alb
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
+
+  # =============================================================================
+  # Stage 4: ECS (전체 종속)
+  # =============================================================================
+  stage4-ecs:
+    name: "Stage 4: ECS"
+    needs:
+      - detect-changes
+      - stage1-vpc
+      - stage1-cloudwatch-logs
+      - stage1-ecr
+      - stage1-iam
+      - stage2-security-groups
+      - stage2-cloudmap
+      - stage3-alb
+    if: >-
+      always() &&
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage1-cloudwatch-logs.result == 'success' || needs.stage1-cloudwatch-logs.result == 'skipped') &&
+      (needs.stage1-ecr.result == 'success' || needs.stage1-ecr.result == 'skipped') &&
+      (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
+      (needs.stage2-security-groups.result == 'success' || needs.stage2-security-groups.result == 'skipped') &&
+      (needs.stage2-cloudmap.result == 'success' || needs.stage2-cloudmap.result == 'skipped') &&
+      (needs.stage3-alb.result == 'success' || needs.stage3-alb.result == 'skipped')
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 60-ecs
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
+
+  # =============================================================================
+  # Summary
+  # =============================================================================
+  summary:
+    name: Pipeline Summary
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
-
-    permissions:
-      id-token: write
-      contents: read
-
+    needs:
+      - detect-changes
+      - stage1-vpc
+      - stage1-cloudwatch-logs
+      - stage1-ecr
+      - stage1-iam
+      - stage2-security-groups
+      - stage2-cloudmap
+      - stage3-alb
+      - stage4-ecs
+    if: always()
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init -upgrade
-
-      - name: Terraform Destroy
-        working-directory: ${{ env.TF_WORKING_DIR }}
+      - name: Summary
         run: |
-          echo "⚠️ Destroying infrastructure..."
-          terraform destroy -auto-approve
+          echo "## Terraform Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| VPC | ${{ needs.stage1-vpc.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CloudWatch Logs | ${{ needs.stage1-cloudwatch-logs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ECR | ${{ needs.stage1-ecr.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IAM | ${{ needs.stage1-iam.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Groups | ${{ needs.stage2-security-groups.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CloudMap | ${{ needs.stage2-cloudmap.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ALB | ${{ needs.stage3-alb.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ECS | ${{ needs.stage4-ecs.result }} |" >> $GITHUB_STEP_SUMMARY

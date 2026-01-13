@@ -52,10 +52,12 @@ variable "alb_ingress_rules" {
 }
 
 variable "ecs_service_ports" {
-  description = "ECS service ports for internal communication"
+  description = "ECS service ports configuration. from_alb과 internal 속성으로 규칙 유형 제어"
   type = map(object({
     port        = number
     protocol    = string
     description = string
+    from_alb    = optional(bool, false)
+    internal    = optional(bool, false)
   }))
 }

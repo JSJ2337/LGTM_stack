@@ -16,11 +16,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "jsj-lgtm-terraform-state"
-    key            = "lgtm-ecs/prod/10-ecr/terraform.tfstate"
-    region         = "ap-northeast-2"
-    encrypt        = true
-    dynamodb_table = "jsj-lgtm-terraform-locks"
+    key = "lgtm-ecs/prod/10-ecr/terraform.tfstate"
   }
 }
 
