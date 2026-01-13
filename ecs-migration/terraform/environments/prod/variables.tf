@@ -12,9 +12,38 @@ variable "environment" {
   default     = "prod"
 }
 
-variable "vpc_name" {
-  description = "VPC Name tag"
+variable "project_name" {
+  description = "Project name"
   type        = string
+  default     = "lgtm"
+}
+
+# =============================================================================
+# VPC Configuration
+# =============================================================================
+
+variable "vpc_cidr" {
+  description = "VPC CIDR block"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "availability_zones" {
+  description = "List of availability zones"
+  type        = list(string)
+  default     = ["ap-northeast-2a", "ap-northeast-2c"]
+}
+
+variable "public_subnet_cidrs" {
+  description = "Public subnet CIDR blocks"
+  type        = list(string)
+  default     = ["10.0.1.0/24", "10.0.2.0/24"]
+}
+
+variable "private_subnet_cidrs" {
+  description = "Private subnet CIDR blocks"
+  type        = list(string)
+  default     = ["10.0.11.0/24", "10.0.12.0/24"]
 }
 
 variable "s3_bucket_name" {
@@ -30,13 +59,15 @@ variable "cloudmap_namespace" {
 }
 
 variable "certificate_arn" {
-  description = "ACM certificate ARN for HTTPS"
+  description = "ACM certificate ARN for HTTPS (optional - leave empty for HTTP only)"
   type        = string
+  default     = ""
 }
 
 variable "domain_name" {
-  description = "Domain name for Grafana"
+  description = "Domain name for Grafana (optional - uses ALB DNS if empty)"
   type        = string
+  default     = ""
 }
 
 variable "ecr_repositories" {

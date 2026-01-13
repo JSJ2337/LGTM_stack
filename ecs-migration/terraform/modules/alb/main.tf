@@ -21,13 +21,19 @@ variable "environment" {
 }
 
 variable "certificate_arn" {
-  description = "ACM certificate ARN"
+  description = "ACM certificate ARN (optional - leave empty for HTTP only)"
   type        = string
+  default     = ""
 }
 
 variable "domain_name" {
-  description = "Domain name for Grafana"
+  description = "Domain name for Grafana (optional)"
   type        = string
+  default     = ""
+}
+
+locals {
+  enable_https = var.certificate_arn != ""
 }
 
 # =============================================================================
@@ -41,7 +47,7 @@ resource "aws_lb" "main" {
   security_groups    = [var.security_group_id]
   subnets            = var.public_subnet_ids
 
-  enable_deletion_protection = true
+  enable_deletion_protection = false
 
   tags = {
     Name        = "lgtm-${var.environment}-alb"
@@ -149,25 +155,32 @@ resource "aws_lb_target_group" "tempo" {
 # Listeners
 # =============================================================================
 
-# HTTP Listener (Redirect to HTTPS)
+# HTTP Listener
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type = "redirect"
+    type = local.enable_https ? "redirect" : "forward"
 
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
+    dynamic "redirect" {
+      for_each = local.enable_https ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
     }
+
+    target_group_arn = local.enable_https ? null : aws_lb_target_group.grafana.arn
   }
 }
 
-# HTTPS Listener
+# HTTPS Listener (only if certificate is provided)
 resource "aws_lb_listener" "https" {
+  count = local.enable_https ? 1 : 0
+
   load_balancer_arn = aws_lb.main.arn
   port              = 443
   protocol          = "HTTPS"
@@ -181,12 +194,13 @@ resource "aws_lb_listener" "https" {
 }
 
 # =============================================================================
-# Listener Rules
+# Listener Rules (HTTP - only when HTTPS is disabled)
 # =============================================================================
 
-# Mimir API
-resource "aws_lb_listener_rule" "mimir" {
-  listener_arn = aws_lb_listener.https.arn
+resource "aws_lb_listener_rule" "mimir_http" {
+  count = local.enable_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
   priority     = 10
 
   action {
@@ -201,9 +215,10 @@ resource "aws_lb_listener_rule" "mimir" {
   }
 }
 
-# Loki API
-resource "aws_lb_listener_rule" "loki" {
-  listener_arn = aws_lb_listener.https.arn
+resource "aws_lb_listener_rule" "loki_http" {
+  count = local.enable_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
   priority     = 20
 
   action {
@@ -218,9 +233,68 @@ resource "aws_lb_listener_rule" "loki" {
   }
 }
 
-# Tempo API
-resource "aws_lb_listener_rule" "tempo" {
-  listener_arn = aws_lb_listener.https.arn
+resource "aws_lb_listener_rule" "tempo_http" {
+  count = local.enable_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 30
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tempo.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/traces", "/v1/traces"]
+    }
+  }
+}
+
+# =============================================================================
+# Listener Rules (HTTPS - only when certificate is provided)
+# =============================================================================
+
+resource "aws_lb_listener_rule" "mimir_https" {
+  count = local.enable_https ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.mimir.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/v1/push", "/prometheus/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "loki_https" {
+  count = local.enable_https ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 20
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.loki.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/loki/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "tempo_https" {
+  count = local.enable_https ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
   priority     = 30
 
   action {

@@ -1,0 +1,265 @@
+# LGTM Stack ECS Fargate CI/CD Pipeline
+# GitHub Actions Workflow for building and deploying LGTM components to ECS
+
+name: Deploy LGTM Stack to ECS
+
+on:
+  push:
+    branches:
+      - main
+      - lgtm_prd
+    paths:
+      - 'ecs-migration/dockerfiles/**'
+      - '.github/workflows/deploy-ecs.yaml'
+
+  workflow_dispatch:
+    inputs:
+      component:
+        description: '배포할 컴포넌트'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - mimir
+          - loki
+          - tempo
+          - pyroscope
+          - grafana
+          - alloy
+      image_tag:
+        description: '이미지 태그'
+        required: false
+        default: 'latest'
+        type: string
+      force_deploy:
+        description: '변경 없어도 강제 배포'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECS_CLUSTER: lgtm-prod-cluster
+  DOCKERFILE_PATH: ecs-migration/dockerfiles
+
+jobs:
+  # =============================================================================
+  # Build and Push Images
+  # =============================================================================
+  build:
+    name: Build ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [mimir, loki, tempo, pyroscope, grafana, alloy]
+
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Check if should build
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]] || \
+             [[ "${{ github.event.inputs.component }}" == "all" ]] || \
+             [[ "${{ github.event.inputs.component }}" == "${{ matrix.component }}" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.check.outputs.should_build == 'true'
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: steps.check.outputs.should_build == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: steps.check.outputs.should_build == 'true'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.should_build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        if: steps.check.outputs.should_build == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/lgtm-${{ matrix.component }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.image_tag || 'latest' }}
+            type=sha,prefix=
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+
+      - name: Build and push
+        if: steps.check.outputs.should_build == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.DOCKERFILE_PATH }}/${{ matrix.component }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            GIT_COMMIT=${{ github.sha }}
+
+      - name: Image scan with Trivy
+        if: steps.check.outputs.should_build == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/lgtm-${{ matrix.component }}:${{ github.event.inputs.image_tag || 'latest' }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+  # =============================================================================
+  # Deploy to ECS
+  # =============================================================================
+  deploy:
+    name: Deploy ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [mimir, loki, tempo, pyroscope, grafana, alloy]
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Check if should deploy
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]] || \
+             [[ "${{ github.event.inputs.component }}" == "all" ]] || \
+             [[ "${{ github.event.inputs.component }}" == "${{ matrix.component }}" ]]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.check.outputs.should_deploy == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to ECS
+        if: steps.check.outputs.should_deploy == 'true'
+        run: |
+          echo "Deploying ${{ matrix.component }} to ECS..."
+
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ matrix.component }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for deployment
+        if: steps.check.outputs.should_deploy == 'true'
+        run: |
+          echo "Waiting for ${{ matrix.component }} to stabilize..."
+
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ matrix.component }} \
+            --region ${{ env.AWS_REGION }}
+
+          echo "${{ matrix.component }} deployment completed!"
+
+  # =============================================================================
+  # Health Check
+  # =============================================================================
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always() && needs.deploy.result == 'success'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check service status
+        run: |
+          echo "=========================================="
+          echo "Service Status Check"
+          echo "=========================================="
+
+          COMPONENTS="mimir loki tempo pyroscope grafana alloy"
+
+          for component in $COMPONENTS; do
+            RUNNING=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services $component \
+              --query 'services[0].runningCount' \
+              --output text \
+              --region ${{ env.AWS_REGION }})
+
+            DESIRED=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services $component \
+              --query 'services[0].desiredCount' \
+              --output text \
+              --region ${{ env.AWS_REGION }})
+
+            echo "$component: Running $RUNNING/$DESIRED"
+
+            if [ "$RUNNING" -lt "$DESIRED" ]; then
+              echo "::warning::$component has insufficient running tasks"
+            fi
+          done
+
+  # =============================================================================
+  # Notification
+  # =============================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [build, deploy, health-check]
+    if: always()
+
+    steps:
+      - name: Notify on success
+        if: needs.deploy.result == 'success'
+        run: |
+          echo "✅ LGTM Stack deployment successful!"
+          # Slack notification (optional)
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"✅ LGTM Stack deployment successful!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify on failure
+        if: needs.deploy.result == 'failure'
+        run: |
+          echo "❌ LGTM Stack deployment failed!"
+          # Slack notification (optional)
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"❌ LGTM Stack deployment failed!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}

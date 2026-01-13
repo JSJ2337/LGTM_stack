@@ -1,0 +1,205 @@
+# LGTM Stack Terraform Infrastructure Pipeline
+# GitHub Actions Workflow for Terraform infrastructure management
+
+name: Terraform Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+      - lgtm_prd
+    paths:
+      - 'ecs-migration/terraform/**'
+      - '.github/workflows/terraform.yaml'
+
+  pull_request:
+    branches:
+      - main
+      - lgtm_prd
+    paths:
+      - 'ecs-migration/terraform/**'
+
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform 작업'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      auto_approve:
+        description: '자동 승인'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AWS_REGION: ap-northeast-2
+  TF_WORKING_DIR: ecs-migration/terraform/environments/prod
+  TF_VERSION: '1.13.5'
+
+jobs:
+  # =============================================================================
+  # Terraform Plan
+  # =============================================================================
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    outputs:
+      plan_exitcode: ${{ steps.plan.outputs.exitcode }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -upgrade
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan \
+            -detailed-exitcode \
+            -out=tfplan \
+            2>&1 | tee plan_output.txt
+
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: |
+            ${{ env.TF_WORKING_DIR }}/tfplan
+            ${{ env.TF_WORKING_DIR }}/plan_output.txt
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('${{ env.TF_WORKING_DIR }}/plan_output.txt', 'utf8');
+
+            const output = `## Terraform Plan Output
+
+            \`\`\`hcl
+            ${planOutput.substring(0, 65000)}
+            \`\`\`
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+  # =============================================================================
+  # Terraform Apply
+  # =============================================================================
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: plan
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -upgrade
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
+
+  # =============================================================================
+  # Terraform Destroy
+  # =============================================================================
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -upgrade
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "⚠️ Destroying infrastructure..."
+          terraform destroy -auto-approve

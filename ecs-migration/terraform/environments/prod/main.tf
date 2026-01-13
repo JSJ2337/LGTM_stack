@@ -11,14 +11,14 @@ terraform {
     }
   }
 
-  # S3 Backend for State (권장)
-  # backend "s3" {
-  #   bucket         = "terraform-state-bucket"
-  #   key            = "lgtm-ecs/terraform.tfstate"
-  #   region         = "ap-northeast-2"
-  #   encrypt        = true
-  #   dynamodb_table = "terraform-locks"
-  # }
+  # S3 Backend for State
+  backend "s3" {
+    bucket         = "jsj-lgtm-terraform-state"
+    key            = "lgtm-ecs/terraform.tfstate"
+    region         = "ap-northeast-2"
+    encrypt        = true
+    dynamodb_table = "jsj-lgtm-terraform-locks"
+  }
 }
 
 provider "aws" {
@@ -39,35 +39,30 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-data "aws_vpc" "main" {
-  filter {
-    name   = "tag:Name"
-    values = [var.vpc_name]
+# =============================================================================
+# VPC Module (새로 생성)
+# =============================================================================
+
+module "vpc" {
+  source = "../../modules/vpc"
+
+  project_name         = var.project_name
+  environment          = var.environment
+  vpc_cidr             = var.vpc_cidr
+  availability_zones   = var.availability_zones
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+
+  tags = {
+    Project = var.project_name
   }
 }
 
-data "aws_subnets" "private" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.main.id]
-  }
-
-  filter {
-    name   = "tag:Type"
-    values = ["private"]
-  }
-}
-
-data "aws_subnets" "public" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.main.id]
-  }
-
-  filter {
-    name   = "tag:Type"
-    values = ["public"]
-  }
+# Local values for VPC resources
+locals {
+  vpc_id             = module.vpc.vpc_id
+  public_subnet_ids  = module.vpc.public_subnet_ids
+  private_subnet_ids = module.vpc.private_subnet_ids
 }
 
 # =============================================================================
@@ -94,7 +89,7 @@ module "iam" {
 module "security_groups" {
   source = "../../modules/security-groups"
 
-  vpc_id      = data.aws_vpc.main.id
+  vpc_id      = local.vpc_id
   environment = var.environment
 }
 
@@ -102,7 +97,7 @@ module "security_groups" {
 module "cloudmap" {
   source = "../../modules/cloudmap"
 
-  vpc_id      = data.aws_vpc.main.id
+  vpc_id      = local.vpc_id
   environment = var.environment
   namespace   = var.cloudmap_namespace
 }
@@ -111,8 +106,8 @@ module "cloudmap" {
 module "alb" {
   source = "../../modules/alb"
 
-  vpc_id             = data.aws_vpc.main.id
-  public_subnet_ids  = data.aws_subnets.public.ids
+  vpc_id             = local.vpc_id
+  public_subnet_ids  = local.public_subnet_ids
   security_group_id  = module.security_groups.alb_security_group_id
   environment        = var.environment
   certificate_arn    = var.certificate_arn
@@ -124,8 +119,8 @@ module "ecs" {
   source = "../../modules/ecs"
 
   environment            = var.environment
-  vpc_id                 = data.aws_vpc.main.id
-  private_subnet_ids     = data.aws_subnets.private.ids
+  vpc_id                 = local.vpc_id
+  private_subnet_ids     = local.private_subnet_ids
   security_group_id      = module.security_groups.ecs_security_group_id
   execution_role_arn     = module.iam.task_execution_role_arn
   cloudmap_namespace_id  = module.cloudmap.namespace_id
@@ -178,4 +173,19 @@ output "cloudmap_namespace" {
 output "grafana_url" {
   description = "Grafana URL"
   value       = "https://${var.domain_name}"
+}
+
+output "vpc_id" {
+  description = "VPC ID"
+  value       = module.vpc.vpc_id
+}
+
+output "public_subnet_ids" {
+  description = "Public subnet IDs"
+  value       = module.vpc.public_subnet_ids
+}
+
+output "private_subnet_ids" {
+  description = "Private subnet IDs"
+  value       = module.vpc.private_subnet_ids
 }
