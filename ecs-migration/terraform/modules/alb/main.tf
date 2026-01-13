@@ -121,6 +121,29 @@ resource "aws_lb_target_group" "tempo" {
   })
 }
 
+resource "aws_lb_target_group" "pyroscope" {
+  name        = "${var.project_name}-${var.environment}-pyroscope-tg"
+  port        = 4040
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = var.health_check_config.healthy_threshold
+    unhealthy_threshold = var.health_check_config.unhealthy_threshold
+    timeout             = var.health_check_config.timeout
+    interval            = var.health_check_config.interval
+    path                = "/ready"
+    matcher             = "200"
+  }
+
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-pyroscope-tg"
+    Environment = var.environment
+  })
+}
+
 # -----------------------------------------------------------------------------
 # HTTP Listener
 # -----------------------------------------------------------------------------
@@ -218,7 +241,25 @@ resource "aws_lb_listener_rule" "tempo_http" {
 
   condition {
     path_pattern {
-      values = ["/api/traces", "/v1/traces"]
+      values = ["/api/traces", "/v1/traces", "/tempo/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "pyroscope_http" {
+  count = local.enable_https ? 0 : 1
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 40
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.pyroscope.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/pyroscope/*", "/ingest", "/querier.v1.*"]
     }
   }
 }
@@ -276,7 +317,25 @@ resource "aws_lb_listener_rule" "tempo_https" {
 
   condition {
     path_pattern {
-      values = ["/api/traces", "/v1/traces"]
+      values = ["/api/traces", "/v1/traces", "/tempo/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "pyroscope_https" {
+  count = local.enable_https ? 1 : 0
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 40
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.pyroscope.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/pyroscope/*", "/ingest", "/querier.v1.*"]
     }
   }
 }

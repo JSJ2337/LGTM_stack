@@ -114,21 +114,61 @@ resource "aws_iam_role_policy" "alloy_cloudwatch_access" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "CloudWatchMetricsReadOnly"
         Effect = "Allow"
         Action = [
           "cloudwatch:GetMetricData",
           "cloudwatch:GetMetricStatistics",
-          "cloudwatch:ListMetrics",
+          "cloudwatch:ListMetrics"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "CloudWatchLogsReadOnly"
+        Effect = "Allow"
+        Action = [
           "logs:GetLogEvents",
           "logs:FilterLogEvents",
           "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams",
-          "tag:GetResources",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:*"
+        ]
+      },
+      {
+        Sid    = "EC2DescribeReadOnly"
+        Effect = "Allow"
+        Action = [
           "ec2:DescribeInstances",
-          "ec2:DescribeRegions",
-          "rds:DescribeDBInstances",
+          "ec2:DescribeRegions"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "RDSDescribeReadOnly"
+        Effect = "Allow"
+        Action = [
+          "rds:DescribeDBInstances"
+        ]
+        Resource = [
+          "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db:*"
+        ]
+      },
+      {
+        Sid    = "ELBDescribeReadOnly"
+        Effect = "Allow"
+        Action = [
           "elasticloadbalancing:DescribeLoadBalancers",
           "elasticloadbalancing:DescribeTargetGroups"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "TagResourcesReadOnly"
+        Effect = "Allow"
+        Action = [
+          "tag:GetResources"
         ]
         Resource = "*"
       }
@@ -147,5 +187,62 @@ resource "aws_iam_role" "grafana_task" {
   tags = merge(var.tags, {
     Name        = "${var.project_name}-${var.environment}-grafana-task-role"
     Environment = var.environment
+  })
+}
+
+resource "aws_iam_role_policy" "grafana_cloudwatch_access" {
+  name = "cloudwatch-readonly"
+  role = aws_iam_role.grafana_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CloudWatchMetricsReadOnly"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:DescribeAlarmsForMetric",
+          "cloudwatch:DescribeAlarmHistory",
+          "cloudwatch:DescribeAlarms",
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricData",
+          "cloudwatch:GetMetricStatistics"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "CloudWatchLogsReadOnly"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:GetLogRecord",
+          "logs:GetQueryResults",
+          "logs:StartQuery",
+          "logs:StopQuery"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:*"
+        ]
+      },
+      {
+        Sid    = "EC2DescribeReadOnly"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances",
+          "ec2:DescribeRegions"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "TagResourcesReadOnly"
+        Effect = "Allow"
+        Action = [
+          "tag:GetResources"
+        ]
+        Resource = "*"
+      }
+    ]
   })
 }

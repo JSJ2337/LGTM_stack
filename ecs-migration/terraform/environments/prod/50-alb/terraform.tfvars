@@ -1,26 +1,13 @@
 # =============================================================================
 # 50-ALB Root Module - Production Configuration
 # =============================================================================
-# 사용법: terraform apply -var-file="../common.tfvars" -var-file="terraform.tfvars"
+# 사용법: terraform apply -var-file="../common.tfvars"
+# 모든 설정은 common.tfvars에서 관리됩니다.
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Remote State 설정
-# -----------------------------------------------------------------------------
-
-state_bucket = "jsj-lgtm-terraform-state"
-
-# -----------------------------------------------------------------------------
-# ALB 설정
-# -----------------------------------------------------------------------------
-
-internal                   = false
-enable_deletion_protection = false
-certificate_arn            = ""
-
-health_check_config = {
-  healthy_threshold   = 2
-  unhealthy_threshold = 3
-  timeout             = 5
-  interval            = 30
-}
+# ALB 설정은 common.tfvars에서 관리:
+# - state_bucket
+# - alb_internal
+# - alb_enable_deletion_protection
+# - alb_certificate_arn
+# - alb_health_check_config

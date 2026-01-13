@@ -50,22 +50,22 @@ variable "state_bucket" {
 # ALB 전용 변수
 # -----------------------------------------------------------------------------
 
-variable "internal" {
+variable "alb_internal" {
   description = "Whether the ALB is internal"
   type        = bool
 }
 
-variable "enable_deletion_protection" {
+variable "alb_enable_deletion_protection" {
   description = "Enable deletion protection for ALB"
   type        = bool
 }
 
-variable "certificate_arn" {
+variable "alb_certificate_arn" {
   description = "ACM certificate ARN for HTTPS"
   type        = string
 }
 
-variable "health_check_config" {
+variable "alb_health_check_config" {
   description = "Health check configuration"
   type = object({
     healthy_threshold   = number

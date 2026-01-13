@@ -5,6 +5,7 @@
 output "task_execution_role_arn" {
   description = "Task execution role ARN"
   value       = aws_iam_role.task_execution.arn
+  sensitive   = true
 }
 
 output "task_execution_role_name" {
@@ -13,36 +14,43 @@ output "task_execution_role_name" {
 }
 
 output "mimir_task_role_arn" {
-  description = "Mimir task role ARN"
+  description = "Mimir task role ARN (alias for lgtm_task_role_arn)"
   value       = aws_iam_role.lgtm_task.arn
+  sensitive   = true
 }
 
 output "loki_task_role_arn" {
-  description = "Loki task role ARN"
+  description = "Loki task role ARN (alias for lgtm_task_role_arn)"
   value       = aws_iam_role.lgtm_task.arn
+  sensitive   = true
 }
 
 output "tempo_task_role_arn" {
-  description = "Tempo task role ARN"
+  description = "Tempo task role ARN (alias for lgtm_task_role_arn)"
   value       = aws_iam_role.lgtm_task.arn
+  sensitive   = true
 }
 
 output "pyroscope_task_role_arn" {
-  description = "Pyroscope task role ARN"
+  description = "Pyroscope task role ARN (alias for lgtm_task_role_arn)"
   value       = aws_iam_role.lgtm_task.arn
+  sensitive   = true
 }
 
 output "grafana_task_role_arn" {
   description = "Grafana task role ARN"
   value       = aws_iam_role.grafana_task.arn
+  sensitive   = true
 }
 
 output "alloy_task_role_arn" {
   description = "Alloy task role ARN"
   value       = aws_iam_role.alloy_task.arn
+  sensitive   = true
 }
 
 output "lgtm_task_role_arn" {
   description = "LGTM shared task role ARN (Mimir, Loki, Tempo, Pyroscope)"
   value       = aws_iam_role.lgtm_task.arn
+  sensitive   = true
 }

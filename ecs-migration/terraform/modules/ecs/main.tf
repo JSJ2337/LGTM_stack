@@ -42,23 +42,9 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 }
 
 # =============================================================================
-# CloudWatch Log Groups
-# =============================================================================
-
-resource "aws_cloudwatch_log_group" "services" {
-  for_each = toset(local.services)
-
-  name              = "/ecs/${var.project_name}-${each.key}"
-  retention_in_days = var.log_retention_days
-
-  tags = merge(var.tags, {
-    Name        = "/ecs/${var.project_name}-${each.key}"
-    Environment = var.environment
-  })
-}
-
-# =============================================================================
 # Task Definitions
+# =============================================================================
+# Note: CloudWatch Log Groups are managed by cloudwatch-logs module
 # =============================================================================
 
 # Mimir Task Definition
@@ -91,7 +77,7 @@ resource "aws_ecs_task_definition" "mimir" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}-mimir"
+          "awslogs-group"         = var.log_group_names["mimir"]
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "mimir"
         }
@@ -144,7 +130,7 @@ resource "aws_ecs_task_definition" "loki" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}-loki"
+          "awslogs-group"         = var.log_group_names["loki"]
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "loki"
         }
@@ -197,7 +183,7 @@ resource "aws_ecs_task_definition" "tempo" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}-tempo"
+          "awslogs-group"         = var.log_group_names["tempo"]
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "tempo"
         }
@@ -250,7 +236,7 @@ resource "aws_ecs_task_definition" "pyroscope" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}-pyroscope"
+          "awslogs-group"         = var.log_group_names["pyroscope"]
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "pyroscope"
         }
@@ -312,7 +298,7 @@ resource "aws_ecs_task_definition" "grafana" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}-grafana"
+          "awslogs-group"         = var.log_group_names["grafana"]
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "grafana"
         }
@@ -358,16 +344,16 @@ resource "aws_ecs_task_definition" "alloy" {
       ]
 
       environment = [
-        { name = "LOKI_URL", value = "http://loki.lgtm.local:3100/loki/api/v1/push" },
-        { name = "LOKI_TENANT", value = "ftt-cloudflare" },
-        { name = "MIMIR_URL", value = "http://mimir.lgtm.local:8080/api/v1/push" },
-        { name = "MIMIR_TENANT", value = "ftt-lgtm-rds" }
+        { name = "LOKI_URL", value = "http://loki.${var.cloudmap_namespace_name}:3100/loki/api/v1/push" },
+        { name = "LOKI_TENANT", value = var.alloy_config.loki_tenant },
+        { name = "MIMIR_URL", value = "http://mimir.${var.cloudmap_namespace_name}:8080/api/v1/push" },
+        { name = "MIMIR_TENANT", value = var.alloy_config.mimir_tenant }
       ]
 
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/${var.project_name}-alloy"
+          "awslogs-group"         = var.log_group_names["alloy"]
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "alloy"
         }
@@ -416,7 +402,7 @@ resource "aws_ecs_service" "mimir" {
   }
 
   service_registries {
-    registry_arn = aws_service_discovery_service.mimir.arn
+    registry_arn = var.cloudmap_service_arns["mimir"]
   }
 
   deployment_circuit_breaker {
@@ -436,8 +422,6 @@ resource "aws_ecs_service" "mimir" {
   lifecycle {
     ignore_changes = [desired_count]
   }
-
-  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Loki Service
@@ -461,7 +445,7 @@ resource "aws_ecs_service" "loki" {
   }
 
   service_registries {
-    registry_arn = aws_service_discovery_service.loki.arn
+    registry_arn = var.cloudmap_service_arns["loki"]
   }
 
   deployment_circuit_breaker {
@@ -481,8 +465,6 @@ resource "aws_ecs_service" "loki" {
   lifecycle {
     ignore_changes = [desired_count]
   }
-
-  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Tempo Service
@@ -506,7 +488,7 @@ resource "aws_ecs_service" "tempo" {
   }
 
   service_registries {
-    registry_arn = aws_service_discovery_service.tempo.arn
+    registry_arn = var.cloudmap_service_arns["tempo"]
   }
 
   deployment_circuit_breaker {
@@ -526,8 +508,6 @@ resource "aws_ecs_service" "tempo" {
   lifecycle {
     ignore_changes = [desired_count]
   }
-
-  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Pyroscope Service
@@ -544,8 +524,14 @@ resource "aws_ecs_service" "pyroscope" {
     assign_public_ip = false
   }
 
+  load_balancer {
+    target_group_arn = var.pyroscope_target_group_arn
+    container_name   = "pyroscope"
+    container_port   = var.service_config.pyroscope.container_port
+  }
+
   service_registries {
-    registry_arn = aws_service_discovery_service.pyroscope.arn
+    registry_arn = var.cloudmap_service_arns["pyroscope"]
   }
 
   deployment_circuit_breaker {
@@ -565,8 +551,6 @@ resource "aws_ecs_service" "pyroscope" {
   lifecycle {
     ignore_changes = [desired_count]
   }
-
-  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Grafana Service
@@ -590,7 +574,7 @@ resource "aws_ecs_service" "grafana" {
   }
 
   service_registries {
-    registry_arn = aws_service_discovery_service.grafana.arn
+    registry_arn = var.cloudmap_service_arns["grafana"]
   }
 
   deployment_circuit_breaker {
@@ -610,8 +594,6 @@ resource "aws_ecs_service" "grafana" {
   lifecycle {
     ignore_changes = [desired_count]
   }
-
-  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # Alloy Service
@@ -629,7 +611,7 @@ resource "aws_ecs_service" "alloy" {
   }
 
   service_registries {
-    registry_arn = aws_service_discovery_service.alloy.arn
+    registry_arn = var.cloudmap_service_arns["alloy"]
   }
 
   deployment_circuit_breaker {
@@ -649,112 +631,10 @@ resource "aws_ecs_service" "alloy" {
   lifecycle {
     ignore_changes = [desired_count]
   }
-
-  depends_on = [aws_cloudwatch_log_group.services]
 }
 
 # =============================================================================
 # Service Discovery (CloudMap Integration)
 # =============================================================================
-
-resource "aws_service_discovery_service" "mimir" {
-  name = "mimir"
-
-  dns_config {
-    namespace_id = var.cloudmap_namespace_id
-
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-
-    routing_policy = "MULTIVALUE"
-  }
-
-  health_check_custom_config {}
-}
-
-resource "aws_service_discovery_service" "loki" {
-  name = "loki"
-
-  dns_config {
-    namespace_id = var.cloudmap_namespace_id
-
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-
-    routing_policy = "MULTIVALUE"
-  }
-
-  health_check_custom_config {}
-}
-
-resource "aws_service_discovery_service" "tempo" {
-  name = "tempo"
-
-  dns_config {
-    namespace_id = var.cloudmap_namespace_id
-
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-
-    routing_policy = "MULTIVALUE"
-  }
-
-  health_check_custom_config {}
-}
-
-resource "aws_service_discovery_service" "pyroscope" {
-  name = "pyroscope"
-
-  dns_config {
-    namespace_id = var.cloudmap_namespace_id
-
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-
-    routing_policy = "MULTIVALUE"
-  }
-
-  health_check_custom_config {}
-}
-
-resource "aws_service_discovery_service" "grafana" {
-  name = "grafana"
-
-  dns_config {
-    namespace_id = var.cloudmap_namespace_id
-
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-
-    routing_policy = "MULTIVALUE"
-  }
-
-  health_check_custom_config {}
-}
-
-resource "aws_service_discovery_service" "alloy" {
-  name = "alloy"
-
-  dns_config {
-    namespace_id = var.cloudmap_namespace_id
-
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-
-    routing_policy = "MULTIVALUE"
-  }
-
-  health_check_custom_config {}
-}
+# CloudMap 서비스는 cloudmap 모듈에서 생성됨
+# ECS 서비스는 var.cloudmap_service_arns를 통해 연결

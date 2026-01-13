@@ -1,8 +1,8 @@
 # =============================================================================
-# 40-CloudMap Root Module - Production Environment
+# 05-CloudWatch-Logs Root Module - Production Environment
 # =============================================================================
-# 실행 순서: 5번째
-# 종속 모듈: 01-vpc (vpc_id 필요)
+# 실행 순서: 2번째 (VPC와 병렬 가능, ECS보다 먼저)
+# 종속 모듈: 없음
 # =============================================================================
 
 terraform {
@@ -17,7 +17,7 @@ terraform {
 
   backend "s3" {
     bucket         = "jsj-lgtm-terraform-state"
-    key            = "lgtm-ecs/prod/40-cloudmap/terraform.tfstate"
+    key            = "lgtm-ecs/prod/05-cloudwatch-logs/terraform.tfstate"
     region         = "ap-northeast-2"
     encrypt        = true
     dynamodb_table = "jsj-lgtm-terraform-locks"
@@ -37,31 +37,15 @@ provider "aws" {
 }
 
 # -----------------------------------------------------------------------------
-# Data Source: VPC State
+# CloudWatch Logs Module
 # -----------------------------------------------------------------------------
 
-data "terraform_remote_state" "vpc" {
-  backend = "s3"
+module "cloudwatch_logs" {
+  source = "../../../modules/cloudwatch-logs"
 
-  config = {
-    bucket = var.state_bucket
-    key    = "lgtm-ecs/prod/01-vpc/terraform.tfstate"
-    region = var.aws_region
-  }
-}
-
-# -----------------------------------------------------------------------------
-# CloudMap Module
-# -----------------------------------------------------------------------------
-
-module "cloudmap" {
-  source = "../../../modules/cloudmap"
-
-  project_name   = var.project_name
-  environment    = var.environment
-  vpc_id         = data.terraform_remote_state.vpc.outputs.vpc_id
-  namespace_name = var.cloudmap_namespace_name
-  services       = var.cloudmap_services
-  dns_ttl        = var.cloudmap_dns_ttl
-  tags           = var.tags
+  project_name           = var.project_name
+  environment            = var.environment
+  services               = var.log_services
+  default_retention_days = var.log_retention_days
+  tags                   = var.tags
 }

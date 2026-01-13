@@ -72,10 +72,10 @@ module "alb" {
   vpc_id                     = data.terraform_remote_state.vpc.outputs.vpc_id
   public_subnet_ids          = data.terraform_remote_state.vpc.outputs.public_subnet_ids
   security_group_id          = data.terraform_remote_state.security_groups.outputs.alb_security_group_id
-  internal                   = var.internal
-  enable_deletion_protection = var.enable_deletion_protection
-  certificate_arn            = var.certificate_arn
+  internal                   = var.alb_internal
+  enable_deletion_protection = var.alb_enable_deletion_protection
+  certificate_arn            = var.alb_certificate_arn
   service_config             = var.service_config
-  health_check_config        = var.health_check_config
+  health_check_config        = var.alb_health_check_config
   tags                       = var.tags
 }

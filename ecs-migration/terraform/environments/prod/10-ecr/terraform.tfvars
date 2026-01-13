@@ -1,23 +1,13 @@
 # =============================================================================
 # 10-ECR Root Module - Production Configuration
 # =============================================================================
-# 사용법: terraform apply -var-file="../common.tfvars" -var-file="terraform.tfvars"
+# 사용법: terraform apply -var-file="../common.tfvars"
+# 모든 설정은 common.tfvars에서 관리됩니다.
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# ECR 설정
-# -----------------------------------------------------------------------------
-
-repositories = [
-  "lgtm-mimir",
-  "lgtm-loki",
-  "lgtm-tempo",
-  "lgtm-pyroscope",
-  "lgtm-grafana",
-  "lgtm-alloy"
-]
-
-image_tag_mutability           = "MUTABLE"
-scan_on_push                   = true
-lifecycle_policy_keep_count    = 30
-lifecycle_policy_untagged_days = 7
+# ECR 설정은 common.tfvars에서 관리:
+# - ecr_repositories
+# - ecr_image_tag_mutability
+# - ecr_scan_on_push
+# - ecr_lifecycle_policy_keep_count
+# - ecr_lifecycle_policy_untagged_days

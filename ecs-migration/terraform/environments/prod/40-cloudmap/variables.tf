@@ -40,17 +40,17 @@ variable "state_bucket" {
 # CloudMap 전용 변수
 # -----------------------------------------------------------------------------
 
-variable "namespace_name" {
+variable "cloudmap_namespace_name" {
   description = "CloudMap namespace name"
   type        = string
 }
 
-variable "services" {
+variable "cloudmap_services" {
   description = "List of service names for CloudMap"
   type        = list(string)
 }
 
-variable "dns_ttl" {
+variable "cloudmap_dns_ttl" {
   description = "DNS record TTL in seconds"
   type        = number
 }

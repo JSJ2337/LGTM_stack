@@ -55,7 +55,10 @@ variable "state_bucket" {
 # ECS 전용 변수
 # -----------------------------------------------------------------------------
 
-variable "log_retention_days" {
-  description = "CloudWatch Logs retention in days"
-  type        = number
+variable "alloy_config" {
+  description = "Alloy collector configuration"
+  type = object({
+    loki_tenant  = string
+    mimir_tenant = string
+  })
 }

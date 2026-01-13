@@ -47,7 +47,4 @@ output "alloy_service_name" {
   value       = aws_ecs_service.alloy.name
 }
 
-output "log_group_names" {
-  description = "CloudWatch Log Group names"
-  value       = { for k, v in aws_cloudwatch_log_group.services : k => v.name }
-}
+# Note: log_group_names output moved to cloudwatch-logs module

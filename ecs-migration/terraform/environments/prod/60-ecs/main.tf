@@ -1,8 +1,9 @@
 # =============================================================================
 # 60-ECS Root Module - Production Environment
 # =============================================================================
-# 실행 순서: 7번째 (마지막)
-# 종속 모듈: 01-vpc, 10-ecr, 20-iam, 30-security-groups, 40-cloudmap, 50-alb
+# 실행 순서: 8번째 (마지막)
+# 종속 모듈: 01-vpc, 05-cloudwatch-logs, 10-ecr, 20-iam, 30-security-groups,
+#           40-cloudmap, 50-alb
 # =============================================================================
 
 terraform {
@@ -100,6 +101,16 @@ data "terraform_remote_state" "alb" {
   }
 }
 
+data "terraform_remote_state" "cloudwatch_logs" {
+  backend = "s3"
+
+  config = {
+    bucket = var.state_bucket
+    key    = "lgtm-ecs/prod/05-cloudwatch-logs/terraform.tfstate"
+    region = var.aws_region
+  }
+}
+
 # -----------------------------------------------------------------------------
 # Data Source: AWS Account ID
 # -----------------------------------------------------------------------------
@@ -132,21 +143,27 @@ module "ecs" {
   grafana_task_role_arn   = data.terraform_remote_state.iam.outputs.grafana_task_role_arn
   alloy_task_role_arn     = data.terraform_remote_state.iam.outputs.alloy_task_role_arn
 
-  # Service Discovery
-  cloudmap_namespace_id = data.terraform_remote_state.cloudmap.outputs.namespace_id
+  # Service Discovery (CloudMap 모듈에서 생성한 서비스 ARN 사용)
+  cloudmap_service_arns   = data.terraform_remote_state.cloudmap.outputs.service_arns
+  cloudmap_namespace_name = data.terraform_remote_state.cloudmap.outputs.namespace_name
 
   # ECR
   ecr_repository_urls = data.terraform_remote_state.ecr.outputs.repository_urls
 
   # ALB Target Groups
-  mimir_target_group_arn   = data.terraform_remote_state.alb.outputs.target_group_arns["mimir"]
-  loki_target_group_arn    = data.terraform_remote_state.alb.outputs.target_group_arns["loki"]
-  tempo_target_group_arn   = data.terraform_remote_state.alb.outputs.target_group_arns["tempo"]
-  grafana_target_group_arn = data.terraform_remote_state.alb.outputs.target_group_arns["grafana"]
+  mimir_target_group_arn     = data.terraform_remote_state.alb.outputs.target_group_arns["mimir"]
+  loki_target_group_arn      = data.terraform_remote_state.alb.outputs.target_group_arns["loki"]
+  tempo_target_group_arn     = data.terraform_remote_state.alb.outputs.target_group_arns["tempo"]
+  grafana_target_group_arn   = data.terraform_remote_state.alb.outputs.target_group_arns["grafana"]
+  pyroscope_target_group_arn = data.terraform_remote_state.alb.outputs.target_group_arns["pyroscope"]
 
   # Service Configuration
-  service_config     = var.service_config
-  s3_bucket_name     = var.s3_bucket_name
-  log_retention_days = var.log_retention_days
-  tags               = var.tags
+  service_config  = var.service_config
+  s3_bucket_name  = var.s3_bucket_name
+  log_group_names = data.terraform_remote_state.cloudwatch_logs.outputs.log_group_names
+
+  # Alloy Configuration
+  alloy_config = var.alloy_config
+
+  tags = var.tags
 }

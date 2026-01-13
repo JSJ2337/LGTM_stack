@@ -31,27 +31,27 @@ variable "tags" {
 # ECR 전용 변수
 # -----------------------------------------------------------------------------
 
-variable "repositories" {
+variable "ecr_repositories" {
   description = "List of ECR repository names"
   type        = list(string)
 }
 
-variable "image_tag_mutability" {
+variable "ecr_image_tag_mutability" {
   description = "Image tag mutability setting"
   type        = string
 }
 
-variable "scan_on_push" {
+variable "ecr_scan_on_push" {
   description = "Enable image scanning on push"
   type        = bool
 }
 
-variable "lifecycle_policy_keep_count" {
+variable "ecr_lifecycle_policy_keep_count" {
   description = "Number of tagged images to keep"
   type        = number
 }
 
-variable "lifecycle_policy_untagged_days" {
+variable "ecr_lifecycle_policy_untagged_days" {
   description = "Days to keep untagged images"
   type        = number
 }

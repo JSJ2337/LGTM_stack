@@ -52,3 +52,8 @@ output "grafana_service_arn" {
   description = "Grafana service discovery ARN"
   value       = try(aws_service_discovery_service.services["grafana"].arn, null)
 }
+
+output "alloy_service_arn" {
+  description = "Alloy service discovery ARN"
+  value       = try(aws_service_discovery_service.services["alloy"].arn, null)
+}

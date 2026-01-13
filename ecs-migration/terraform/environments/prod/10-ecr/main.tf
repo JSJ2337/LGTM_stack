@@ -45,10 +45,10 @@ module "ecr" {
 
   project_name                   = var.project_name
   environment                    = var.environment
-  repositories                   = var.repositories
-  image_tag_mutability           = var.image_tag_mutability
-  scan_on_push                   = var.scan_on_push
-  lifecycle_policy_keep_count    = var.lifecycle_policy_keep_count
-  lifecycle_policy_untagged_days = var.lifecycle_policy_untagged_days
+  repositories                   = var.ecr_repositories
+  image_tag_mutability           = var.ecr_image_tag_mutability
+  scan_on_push                   = var.ecr_scan_on_push
+  lifecycle_policy_keep_count    = var.ecr_lifecycle_policy_keep_count
+  lifecycle_policy_untagged_days = var.ecr_lifecycle_policy_untagged_days
   tags                           = var.tags
 }

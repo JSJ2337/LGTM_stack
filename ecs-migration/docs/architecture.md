@@ -294,18 +294,20 @@ grafana.lgtm.local:3000     → Grafana Task (1개)
 **Listener Rules (Port 443):**
 
 ```text
-grafana.example.com/*              → Grafana Target Group
-mimir.example.com/api/v1/push      → Mimir Target Group
-loki.example.com/loki/api/v1/push  → Loki Target Group
-tempo.example.com/api/traces       → Tempo Target Group
+/                                  → Grafana Target Group (default)
+/api/v1/push, /prometheus/*        → Mimir Target Group (priority 10)
+/loki/*                            → Loki Target Group (priority 20)
+/api/traces, /v1/traces, /tempo/*  → Tempo Target Group (priority 30)
+/pyroscope/*, /ingest, /querier.*  → Pyroscope Target Group (priority 40)
 ```
 
 **Target Groups:**
 
 - Grafana TG → Port 3000
-- Mimir TG → Port 9009
+- Mimir TG → Port 8080
 - Loki TG → Port 3100
 - Tempo TG → Port 3200
+- Pyroscope TG → Port 4040
 
 ## Security Groups
 
@@ -417,15 +419,88 @@ sys-lgtm-s3/
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "CloudWatchMetricsReadOnly",
       "Effect": "Allow",
       "Action": [
         "cloudwatch:GetMetricData",
         "cloudwatch:GetMetricStatistics",
-        "cloudwatch:ListMetrics",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsReadOnly",
+      "Effect": "Allow",
+      "Action": [
         "logs:GetLogEvents",
         "logs:FilterLogEvents",
-        "sts:AssumeRole"
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
       ],
+      "Resource": "arn:aws:logs:${region}:${account_id}:log-group:*"
+    },
+    {
+      "Sid": "EC2DescribeReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "TagReadOnly",
+      "Effect": "Allow",
+      "Action": ["tag:GetResources"],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### Task Role (Grafana)
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudWatchMetricsReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogGroups",
+        "logs:GetLogGroupFields",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:GetQueryResults",
+        "logs:GetLogEvents"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EC2DescribeReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "TagReadOnly",
+      "Effect": "Allow",
+      "Action": ["tag:GetResources"],
       "Resource": "*"
     }
   ]
@@ -436,18 +511,22 @@ sys-lgtm-s3/
 
 ### CloudWatch Logs
 
+**모듈:** `modules/cloudwatch-logs` (ECS와 독립적으로 관리)
+
 **Log Groups:**
 
 ```text
-/ecs/lgtm-mimir
-/ecs/lgtm-loki
-/ecs/lgtm-tempo
-/ecs/lgtm-pyroscope
-/ecs/lgtm-grafana
-/ecs/lgtm-alloy
+/ecs/lgtm-prod/mimir
+/ecs/lgtm-prod/loki
+/ecs/lgtm-prod/tempo
+/ecs/lgtm-prod/pyroscope
+/ecs/lgtm-prod/grafana
+/ecs/lgtm-prod/alloy
 ```
 
-**보존 기간:** 7일
+**네이밍 규칙:** `/ecs/${project_name}-${environment}/${service}`
+
+**보존 기간:** 7일 (configurable via default_retention_days, 서비스별 오버라이드 가능)
 
 ### CloudWatch Metrics
 
@@ -487,4 +566,4 @@ aws ecs update-cluster-settings \
 
 ---
 
-**Last Updated:** 2025-12-10
+**Last Updated:** 2026-01-14

@@ -1,6 +1,25 @@
 # =============================================================================
 # Security Groups Module - Resources
 # =============================================================================
+# 새로운 규칙 추가 방법:
+# 1. common.tfvars의 ecs_service_ports에 항목 추가
+# 2. from_alb = true: ALB에서 들어오는 트래픽 허용
+# 3. internal = true: 내부 통신 (self) 허용
+# =============================================================================
+
+locals {
+  # ALB에서 들어오는 트래픽을 허용할 포트들 필터링
+  alb_ingress_ports = {
+    for k, v in var.ecs_service_ports : k => v
+    if lookup(v, "from_alb", false) == true
+  }
+
+  # 내부 통신 (self) 허용할 포트들 필터링
+  internal_ports = {
+    for k, v in var.ecs_service_ports : k => v
+    if lookup(v, "internal", false) == true
+  }
+}
 
 # -----------------------------------------------------------------------------
 # ALB Security Group
@@ -45,135 +64,28 @@ resource "aws_security_group" "ecs" {
   description = "Security group for LGTM ECS tasks"
   vpc_id      = var.vpc_id
 
-  # ALB에서 들어오는 트래픽 (Grafana, Mimir, Loki, Tempo)
-  ingress {
-    description     = "Grafana HTTP from ALB"
-    from_port       = var.ecs_service_ports.grafana.port
-    to_port         = var.ecs_service_ports.grafana.port
-    protocol        = var.ecs_service_ports.grafana.protocol
-    security_groups = [aws_security_group.alb.id]
+  # ALB에서 들어오는 트래픽 (동적 생성)
+  dynamic "ingress" {
+    for_each = local.alb_ingress_ports
+    content {
+      description     = "${ingress.value.description} from ALB"
+      from_port       = ingress.value.port
+      to_port         = ingress.value.port
+      protocol        = ingress.value.protocol
+      security_groups = [aws_security_group.alb.id]
+    }
   }
 
-  ingress {
-    description     = "Mimir HTTP from ALB"
-    from_port       = var.ecs_service_ports.mimir.port
-    to_port         = var.ecs_service_ports.mimir.port
-    protocol        = var.ecs_service_ports.mimir.protocol
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    description     = "Loki HTTP from ALB"
-    from_port       = var.ecs_service_ports.loki.port
-    to_port         = var.ecs_service_ports.loki.port
-    protocol        = var.ecs_service_ports.loki.protocol
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    description     = "Tempo HTTP from ALB"
-    from_port       = var.ecs_service_ports.tempo.port
-    to_port         = var.ecs_service_ports.tempo.port
-    protocol        = var.ecs_service_ports.tempo.protocol
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    description     = "Tempo OTLP gRPC from ALB"
-    from_port       = var.ecs_service_ports.tempo_otlp_grpc.port
-    to_port         = var.ecs_service_ports.tempo_otlp_grpc.port
-    protocol        = var.ecs_service_ports.tempo_otlp_grpc.protocol
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    description     = "Tempo OTLP HTTP from ALB"
-    from_port       = var.ecs_service_ports.tempo_otlp_http.port
-    to_port         = var.ecs_service_ports.tempo_otlp_http.port
-    protocol        = var.ecs_service_ports.tempo_otlp_http.protocol
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    description     = "Pyroscope HTTP from ALB"
-    from_port       = var.ecs_service_ports.pyroscope.port
-    to_port         = var.ecs_service_ports.pyroscope.port
-    protocol        = var.ecs_service_ports.pyroscope.protocol
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  # 내부 통신 (self)
-  ingress {
-    description = "Mimir HTTP internal"
-    from_port   = var.ecs_service_ports.mimir.port
-    to_port     = var.ecs_service_ports.mimir.port
-    protocol    = var.ecs_service_ports.mimir.protocol
-    self        = true
-  }
-
-  ingress {
-    description = "Mimir gRPC internal"
-    from_port   = var.ecs_service_ports.mimir_grpc.port
-    to_port     = var.ecs_service_ports.mimir_grpc.port
-    protocol    = var.ecs_service_ports.mimir_grpc.protocol
-    self        = true
-  }
-
-  ingress {
-    description = "Loki HTTP internal"
-    from_port   = var.ecs_service_ports.loki.port
-    to_port     = var.ecs_service_ports.loki.port
-    protocol    = var.ecs_service_ports.loki.protocol
-    self        = true
-  }
-
-  ingress {
-    description = "Tempo HTTP internal"
-    from_port   = var.ecs_service_ports.tempo.port
-    to_port     = var.ecs_service_ports.tempo.port
-    protocol    = var.ecs_service_ports.tempo.protocol
-    self        = true
-  }
-
-  ingress {
-    description = "Pyroscope HTTP internal"
-    from_port   = var.ecs_service_ports.pyroscope.port
-    to_port     = var.ecs_service_ports.pyroscope.port
-    protocol    = var.ecs_service_ports.pyroscope.protocol
-    self        = true
-  }
-
-  ingress {
-    description = "Pyroscope gRPC internal"
-    from_port   = var.ecs_service_ports.pyroscope_grpc.port
-    to_port     = var.ecs_service_ports.pyroscope_grpc.port
-    protocol    = var.ecs_service_ports.pyroscope_grpc.protocol
-    self        = true
-  }
-
-  ingress {
-    description = "Alloy HTTP internal"
-    from_port   = var.ecs_service_ports.alloy.port
-    to_port     = var.ecs_service_ports.alloy.port
-    protocol    = var.ecs_service_ports.alloy.protocol
-    self        = true
-  }
-
-  # Memberlist (클러스터링)
-  ingress {
-    description = "Memberlist TCP"
-    from_port   = var.ecs_service_ports.memberlist_tcp.port
-    to_port     = var.ecs_service_ports.memberlist_tcp.port
-    protocol    = var.ecs_service_ports.memberlist_tcp.protocol
-    self        = true
-  }
-
-  ingress {
-    description = "Memberlist UDP"
-    from_port   = var.ecs_service_ports.memberlist_udp.port
-    to_port     = var.ecs_service_ports.memberlist_udp.port
-    protocol    = var.ecs_service_ports.memberlist_udp.protocol
-    self        = true
+  # 내부 통신 (동적 생성)
+  dynamic "ingress" {
+    for_each = local.internal_ports
+    content {
+      description = "${ingress.value.description} internal"
+      from_port   = ingress.value.port
+      to_port     = ingress.value.port
+      protocol    = ingress.value.protocol
+      self        = true
+    }
   }
 
   egress {
