@@ -17,17 +17,32 @@ output "cluster_name" {
   value       = module.ecs.cluster_name
 }
 
-output "service_names" {
-  description = "Map of ECS service names"
-  value       = module.ecs.service_names
+output "mimir_service_name" {
+  description = "Mimir ECS service name"
+  value       = module.ecs.mimir_service_name
 }
 
-output "task_definition_arns" {
-  description = "Map of task definition ARNs"
-  value       = module.ecs.task_definition_arns
+output "loki_service_name" {
+  description = "Loki ECS service name"
+  value       = module.ecs.loki_service_name
 }
 
-output "log_group_names" {
-  description = "Map of CloudWatch log group names"
-  value       = module.ecs.log_group_names
+output "tempo_service_name" {
+  description = "Tempo ECS service name"
+  value       = module.ecs.tempo_service_name
+}
+
+output "pyroscope_service_name" {
+  description = "Pyroscope ECS service name"
+  value       = module.ecs.pyroscope_service_name
+}
+
+output "grafana_service_name" {
+  description = "Grafana ECS service name"
+  value       = module.ecs.grafana_service_name
+}
+
+output "alloy_service_name" {
+  description = "Alloy ECS service name"
+  value       = module.ecs.alloy_service_name
 }
