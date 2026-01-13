@@ -9,20 +9,8 @@ LABEL app="lgtm-grafana"
 LABEL version="12.1.0"
 LABEL environment="production"
 
-# 프로비저닝 디렉토리 생성
-USER root
-RUN mkdir -p /etc/grafana/provisioning/datasources \
-             /etc/grafana/provisioning/dashboards \
-             /var/lib/grafana/dashboards
-
 # 프로비저닝 설정 파일 복사
 COPY config/provisioning/ /etc/grafana/provisioning/
-
-# 권한 설정
-RUN chown -R grafana:root /etc/grafana /var/lib/grafana
-
-# 비root 유저로 전환
-USER grafana
 
 # 환경변수 기본값
 ENV GF_SECURITY_ADMIN_USER=admin
@@ -40,7 +28,7 @@ ENV GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_TENANT_ID=ftt-lgtm
 # 포트 노출
 EXPOSE 3000
 
-# 헬스체크
+# 헬스체크 (Grafana는 Alpine 기반, wget 사용 가능)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 

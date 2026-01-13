@@ -9,18 +9,8 @@ LABEL app="lgtm-alloy"
 LABEL version="1.5.1"
 LABEL environment="production"
 
-# 설정 디렉토리 생성
-USER root
-RUN mkdir -p /etc/alloy/config.d /var/lib/alloy /data/alloy-remote-config
-
-# 설정 파일 복사
+# 설정 파일 복사 (Distroless 이미지는 shell 없음, COPY만 가능)
 COPY config.d/ /etc/alloy/config.d/
-
-# 권한 설정
-RUN chown -R 10001:10001 /etc/alloy /var/lib/alloy /data
-
-# 비root 유저로 전환
-USER 10001
 
 # 환경변수 기본값
 ENV LOKI_URL=http://loki.lgtm.local:3100/loki/api/v1/push
@@ -31,12 +21,11 @@ ENV MIMIR_TENANT=ftt-lgtm-rds
 # 포트 노출
 EXPOSE 12345 9080
 
-# 헬스체크
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:12345/-/healthy || exit 1
+# 헬스체크 비활성화 (Distroless에서는 wget/curl 없음, ECS Task Definition에서 설정)
+# HEALTHCHECK 제거 - ALB 헬스체크 사용
 
-# Alloy 실행
-CMD ["/bin/alloy", "run", \
+# Alloy 실행 (run 서브커맨드 사용)
+CMD ["run", \
     "--stability.level=experimental", \
     "--server.http.listen-addr=0.0.0.0:12345", \
     "--storage.path=/var/lib/alloy", \

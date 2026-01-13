@@ -22,7 +22,6 @@ EXPOSE 4040 4041
 # 헬스체크 비활성화 (Distroless에서는 wget/curl 없음, ECS Task Definition에서 설정)
 # HEALTHCHECK 제거 - ALB 헬스체크 사용
 
-# Pyroscope 실행
-CMD ["/usr/bin/pyroscope", \
-    "--config.file=/etc/pyroscope/config.yaml", \
-    "--target=all"]
+# Pyroscope 실행 (단일 하이픈 옵션 사용)
+CMD ["-config.file=/etc/pyroscope/config.yaml", \
+    "-target=all"]

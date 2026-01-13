@@ -47,7 +47,8 @@ limits:
 ##############################################################################
 memberlist:
   # Fargate 1.4.0+ 에서는 eth1 사용
-  bind_addr: "0.0.0.0"
+  bind_addr:
+    - "0.0.0.0"
   bind_port: 7946
   # CloudMap Service Discovery로 join
   join_members:
