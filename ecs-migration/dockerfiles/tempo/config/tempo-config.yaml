@@ -39,9 +39,9 @@ storage:
   trace:
     backend: s3
     s3:
-      bucket: sys-lgtm-s3
-      region: ap-northeast-2
-      endpoint: s3.ap-northeast-2.amazonaws.com
+      bucket: ${TEMPO_S3_BUCKET}
+      region: ${AWS_REGION}
+      endpoint: s3.${AWS_REGION}.amazonaws.com
       prefix: ftt-tempo/
       storage_class: STANDARD_IA
 

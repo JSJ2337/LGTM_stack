@@ -14,6 +14,7 @@ COPY config/tempo-config.yaml /etc/tempo/tempo.yaml
 
 # 환경변수 기본값
 ENV AWS_REGION=ap-northeast-2
+ENV TEMPO_S3_BUCKET=jsj-lgtm-data-s3
 
 # 포트 노출
 EXPOSE 3200 4317 4318
@@ -22,4 +23,4 @@ EXPOSE 3200 4317 4318
 # HEALTHCHECK 제거 - ALB 헬스체크 사용
 
 # Tempo 실행
-CMD ["-config.file=/etc/tempo/tempo.yaml"]
+CMD ["-config.file=/etc/tempo/tempo.yaml", "-config.expand-env=true"]

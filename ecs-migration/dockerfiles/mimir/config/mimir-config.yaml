@@ -10,8 +10,8 @@ common:
   storage:
     backend: s3
     s3:
-      endpoint: s3.ap-northeast-2.amazonaws.com
-      region: ap-northeast-2
+      endpoint: s3.${AWS_REGION}.amazonaws.com
+      region: ${AWS_REGION}
       bucket_name: ${MIMIR_S3_BUCKET}
 
 ##############################################################################

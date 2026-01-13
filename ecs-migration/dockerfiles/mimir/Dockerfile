@@ -14,7 +14,7 @@ COPY config/mimir-config.yaml /etc/mimir/mimir-config.yaml
 
 # 환경변수 기본값
 ENV AWS_REGION=ap-northeast-2
-ENV MIMIR_S3_BUCKET=sys-lgtm-s3
+ENV MIMIR_S3_BUCKET=jsj-lgtm-data-s3
 
 # 포트 노출
 EXPOSE 8080 9095 7946

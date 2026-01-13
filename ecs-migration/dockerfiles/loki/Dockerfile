@@ -14,7 +14,7 @@ COPY config/loki-config.yaml /etc/loki/loki-config.yaml
 
 # 환경변수 기본값
 ENV AWS_REGION=ap-northeast-2
-ENV LOKI_S3_BUCKET=sys-lgtm-s3
+ENV LOKI_S3_BUCKET=jsj-lgtm-data-s3
 
 # 포트 노출
 EXPOSE 3100

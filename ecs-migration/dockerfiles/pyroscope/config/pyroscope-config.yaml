@@ -8,11 +8,11 @@ server:
 storage:
   backend: s3
   s3:
-    bucket_name: sys-lgtm-s3
-    endpoint: s3.ap-northeast-2.amazonaws.com
-    region: ap-northeast-2
+    bucket_name: ${PYROSCOPE_S3_BUCKET}
+    endpoint: s3.${AWS_REGION}.amazonaws.com
+    region: ${AWS_REGION}
     insecure: false
-  prefix: ftt-pyroscope
+    storage_prefix: ftt-pyroscope
 
 pyroscopedb:
   data_path: /data

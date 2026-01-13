@@ -59,7 +59,7 @@ storage_config:
   use_thanos_objstore: true
   object_store:
     s3:
-      endpoint: s3.ap-northeast-2.amazonaws.com
+      endpoint: s3.${AWS_REGION}.amazonaws.com
       bucket_name: ${LOKI_S3_BUCKET}
       region: ${AWS_REGION}
       bucket_lookup_type: path
