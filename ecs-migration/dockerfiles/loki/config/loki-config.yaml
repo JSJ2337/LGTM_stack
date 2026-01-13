@@ -10,7 +10,7 @@ server:
 # Common (ring & dirs)
 ########################
 common:
-  path_prefix: /ftt-loki
+  path_prefix: /loki
   replication_factor: 1
   ring:
     kvstore:
@@ -32,7 +32,7 @@ memberlist:
 ingester:
   wal:
     enabled: true
-    dir: /ftt-loki/wal
+    dir: /loki/wal
     checkpoint_duration: 5m
     flush_on_shutdown: true
   chunk_target_size: 1572864
@@ -66,15 +66,15 @@ storage_config:
       bucket_lookup_type: path
     storage_prefix: ftt-loki
   tsdb_shipper:
-    active_index_directory: /ftt-loki/index
-    cache_location: /ftt-loki/index_cache
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
     cache_ttl: 24h
 
 ########################
 # Compactor & Limits
 ########################
 compactor:
-  working_directory: /ftt-loki/compactor
+  working_directory: /loki/compactor
   compaction_interval: 5m
   retention_enabled: true
   retention_delete_delay: 2h
