@@ -4,17 +4,17 @@
 
 output "alb_arn" {
   description = "ALB ARN"
-  value       = module.alb.alb_arn
+  value       = module.alb.arn
 }
 
 output "alb_dns_name" {
   description = "ALB DNS name"
-  value       = module.alb.alb_dns_name
+  value       = module.alb.dns_name
 }
 
 output "alb_zone_id" {
   description = "ALB zone ID"
-  value       = module.alb.alb_zone_id
+  value       = module.alb.zone_id
 }
 
 output "target_group_arns" {
