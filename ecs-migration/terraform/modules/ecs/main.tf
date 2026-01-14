@@ -337,13 +337,7 @@ resource "aws_ecs_task_definition" "alloy" {
         }
       }
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "wget -qO- http://localhost:12345/-/healthy >/dev/null 2>&1 || exit 1"]
-        interval    = 30
-        timeout     = 10
-        retries     = 3
-        startPeriod = 30
-      }
+      # healthCheck 제거: Distroless 이미지는 curl/wget 없음, ALB 헬스체크 사용
 
       stopTimeout = 30
     }
