@@ -147,11 +147,12 @@ module "ecs" {
   ecr_repository_urls = data.terraform_remote_state.ecr.outputs.repository_urls
 
   # ALB Target Groups
-  mimir_target_group_arn     = data.terraform_remote_state.alb.outputs.target_group_arns["mimir"]
-  loki_target_group_arn      = data.terraform_remote_state.alb.outputs.target_group_arns["loki"]
-  tempo_target_group_arn     = data.terraform_remote_state.alb.outputs.target_group_arns["tempo"]
-  grafana_target_group_arn   = data.terraform_remote_state.alb.outputs.target_group_arns["grafana"]
-  pyroscope_target_group_arn = data.terraform_remote_state.alb.outputs.target_group_arns["pyroscope"]
+  mimir_target_group_arn      = data.terraform_remote_state.alb.outputs.target_group_arns["mimir"]
+  loki_target_group_arn       = data.terraform_remote_state.alb.outputs.target_group_arns["loki"]
+  tempo_target_group_arn      = data.terraform_remote_state.alb.outputs.target_group_arns["tempo"]
+  tempo_otlp_target_group_arn = data.terraform_remote_state.alb.outputs.target_group_arns["tempo_otlp"]
+  grafana_target_group_arn    = data.terraform_remote_state.alb.outputs.target_group_arns["grafana"]
+  pyroscope_target_group_arn  = data.terraform_remote_state.alb.outputs.target_group_arns["pyroscope"]
 
   # Service Configuration
   service_config  = var.service_config

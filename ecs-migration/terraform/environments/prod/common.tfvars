@@ -93,6 +93,13 @@ alb_ingress_rules = {
     cidr_blocks = ["0.0.0.0/0"]
     description = "HTTPS access"
   }
+  tempo_otlp = {
+    from_port   = 4318
+    to_port     = 4318
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Tempo OTLP HTTP access"
+  }
 }
 
 # -----------------------------------------------------------------------------

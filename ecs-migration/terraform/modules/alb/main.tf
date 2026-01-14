@@ -144,6 +144,31 @@ resource "aws_lb_target_group" "pyroscope" {
   })
 }
 
+# Tempo OTLP HTTP Target Group (4318)
+resource "aws_lb_target_group" "tempo_otlp" {
+  name        = "${var.project_name}-${var.environment}-tempo-otlp-tg"
+  port        = 4318
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = var.health_check_config.healthy_threshold
+    unhealthy_threshold = var.health_check_config.unhealthy_threshold
+    timeout             = var.health_check_config.timeout
+    interval            = var.health_check_config.interval
+    path                = "/ready"
+    port                = "3200"
+    matcher             = "200"
+  }
+
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}-${var.environment}-tempo-otlp-tg"
+    Environment = var.environment
+  })
+}
+
 # -----------------------------------------------------------------------------
 # HTTP Listener
 # -----------------------------------------------------------------------------
@@ -185,6 +210,21 @@ resource "aws_lb_listener" "https" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.grafana.arn
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Tempo OTLP HTTP Listener (4318)
+# -----------------------------------------------------------------------------
+
+resource "aws_lb_listener" "tempo_otlp" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 4318
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tempo_otlp.arn
   }
 }
 
