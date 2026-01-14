@@ -83,13 +83,7 @@ resource "aws_ecs_task_definition" "mimir" {
         }
       }
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:8080/-/ready || exit 1"]
-        interval    = 30
-        timeout     = 10
-        retries     = 3
-        startPeriod = 60
-      }
+      # healthCheck 제거: Distroless 이미지는 curl/wget 없음, ALB 헬스체크 사용
 
       stopTimeout = 120
     }
@@ -136,13 +130,7 @@ resource "aws_ecs_task_definition" "loki" {
         }
       }
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
-        interval    = 30
-        timeout     = 10
-        retries     = 3
-        startPeriod = 40
-      }
+      # healthCheck 제거: Distroless 이미지는 curl/wget 없음, ALB 헬스체크 사용
 
       stopTimeout = 120
     }
@@ -190,13 +178,7 @@ resource "aws_ecs_task_definition" "tempo" {
         }
       }
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:3200/ready || exit 1"]
-        interval    = 30
-        timeout     = 10
-        retries     = 3
-        startPeriod = 30
-      }
+      # healthCheck 제거: Distroless 이미지는 curl/wget 없음, ALB 헬스체크 사용
 
       stopTimeout = 120
     }
@@ -244,13 +226,7 @@ resource "aws_ecs_task_definition" "pyroscope" {
         }
       }
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:4040/ready || exit 1"]
-        interval    = 30
-        timeout     = 10
-        retries     = 3
-        startPeriod = 30
-      }
+      # healthCheck 제거: Distroless 이미지는 curl/wget 없음, ALB 헬스체크 사용
 
       stopTimeout = 120
     }
@@ -307,7 +283,7 @@ resource "aws_ecs_task_definition" "grafana" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+        command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
         interval    = 30
         timeout     = 10
         retries     = 3
