@@ -79,31 +79,19 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: bash
         run: |
-          # terraform plan 실행 및 exit code 캡처
-          # -detailed-exitcode: 0=변경없음, 1=에러, 2=변경있음
+          # -detailed-exitcode 없이 실행, plan 결과로 변경 여부 판단
           terraform plan \
             -var-file="../common.tfvars" \
-            -detailed-exitcode \
             -compact-warnings \
-            -out=tfplan > plan_output.txt 2>&1 || EXITCODE=$?
-          EXITCODE=${EXITCODE:-0}
+            -out=tfplan 2>&1 | tee plan_output.txt
 
-          # plan 결과 출력
-          cat plan_output.txt
-
-          echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
-          echo "Terraform plan exit code: $EXITCODE"
-
-          if [ $EXITCODE -eq 2 ]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected, apply will be triggered"
-          elif [ $EXITCODE -eq 0 ]; then
+          # plan 결과에서 변경 여부 확인
+          if grep -q "No changes" plan_output.txt; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "No changes detected"
           else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "Terraform plan failed"
-            exit 1
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected, apply will be triggered"
           fi
 
       - name: Upload Plan Artifact
