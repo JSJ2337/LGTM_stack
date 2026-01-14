@@ -1,6 +1,6 @@
 # Terraform Component Reusable Workflow
 # 개별 컴포넌트에 대한 Terraform 실행
-# 승인은 메인 워크플로우에서 한 번만 수행
+# Apply는 Plan 없이 직접 실행 (종속 리소스 state 문제 방지)
 
 name: Terraform Component
 
@@ -16,10 +16,6 @@ on:
         required: true
         type: string
         default: 'plan'
-    outputs:
-      plan_exitcode:
-        description: 'Terraform plan exit code'
-        value: ${{ jobs.plan.outputs.exitcode }}
 
 env:
   AWS_REGION: ap-northeast-2
@@ -27,18 +23,15 @@ env:
 
 jobs:
   # =============================================================================
-  # Plan Job - 항상 실행
+  # Plan Job - plan 액션일 때만 실행
   # =============================================================================
   plan:
     name: "Plan - ${{ inputs.component }}"
     runs-on: ubuntu-latest
+    if: inputs.action == 'plan'
 
     env:
       TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
-
-    outputs:
-      exitcode: ${{ steps.plan.outputs.exitcode }}
-      has_changes: ${{ steps.plan.outputs.has_changes }}
 
     steps:
       - name: Checkout
@@ -75,9 +68,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        if: inputs.action != 'destroy'
         working-directory: ${{ env.TF_WORKING_DIR }}
-        shell: bash
         run: |
           terraform plan \
             -var-file="../common.tfvars" \
@@ -86,73 +77,28 @@ jobs:
 
           if grep -q "No changes" plan_output.txt; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No changes detected"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected, apply will be triggered"
           fi
-
-      - name: Upload Plan Artifact
-        if: inputs.action != 'destroy'
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan-${{ inputs.component }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ env.TF_WORKING_DIR }}/tfplan
-            ${{ env.TF_WORKING_DIR }}/plan_output.txt
-          retention-days: 7
-          overwrite: true
-
-      - name: Comment Plan on PR
-        if: github.event_name == 'pull_request' && inputs.action != 'destroy'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const planOutput = fs.readFileSync('${{ env.TF_WORKING_DIR }}/plan_output.txt', 'utf8');
-
-            const output = `## Terraform Plan: \`${{ inputs.component }}\`
-
-            <details>
-            <summary>Plan Output (click to expand)</summary>
-
-            \`\`\`hcl
-            ${planOutput.substring(0, 60000)}
-            \`\`\`
-
-            </details>
-
-            *Component: \`${{ inputs.component }}\`, Action: \`${{ inputs.action }}\`*
-            *Pushed by: @${{ github.actor }}*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            });
 
       - name: Plan Summary
         if: always()
         run: |
           echo "## ${{ inputs.component }} - Plan" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Exit Code:** ${{ steps.plan.outputs.exitcode }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Has Changes:** ${{ steps.plan.outputs.has_changes }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- 0: No changes" >> $GITHUB_STEP_SUMMARY
-          echo "- 2: Changes detected" >> $GITHUB_STEP_SUMMARY
+          if [ -f "${{ env.TF_WORKING_DIR }}/plan_output.txt" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 "${{ env.TF_WORKING_DIR }}/plan_output.txt" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
   # =============================================================================
-  # Apply Job - 승인 없이 자동 실행 (메인 워크플로우에서 승인)
+  # Apply Job - apply 액션일 때 직접 실행 (Plan 스킵)
   # =============================================================================
   apply:
     name: "Apply - ${{ inputs.component }}"
     runs-on: ubuntu-latest
-    needs: plan
-    if: |
-      inputs.action == 'apply' &&
-      needs.plan.outputs.has_changes == 'true'
+    if: inputs.action == 'apply'
 
     env:
       TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
@@ -186,27 +132,28 @@ jobs:
             -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
             -backend-config="encrypt=true"
 
-      - name: Download Plan Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan-${{ inputs.component }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.TF_WORKING_DIR }}
-
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           echo "✅ ${{ inputs.component }} Apply 시작..."
-          terraform apply -auto-approve -compact-warnings tfplan
+          terraform apply \
+            -var-file="../common.tfvars" \
+            -compact-warnings \
+            -auto-approve 2>&1 | tee apply_output.txt
 
       - name: Apply Summary
         if: always()
         run: |
           echo "## ${{ inputs.component }} - Apply" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Apply 완료" >> $GITHUB_STEP_SUMMARY
+          if [ -f "${{ env.TF_WORKING_DIR }}/apply_output.txt" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 "${{ env.TF_WORKING_DIR }}/apply_output.txt" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
   # =============================================================================
-  # Destroy Job - 승인 없이 자동 실행 (메인 워크플로우에서 승인)
+  # Destroy Job - destroy 액션일 때 실행
   # =============================================================================
   destroy:
     name: "Destroy - ${{ inputs.component }}"
@@ -252,11 +199,15 @@ jobs:
           terraform destroy \
             -var-file="../common.tfvars" \
             -compact-warnings \
-            -auto-approve
+            -auto-approve 2>&1 | tee destroy_output.txt
 
       - name: Destroy Summary
         if: always()
         run: |
           echo "## ${{ inputs.component }} - Destroy" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⚠️ Destroy 완료" >> $GITHUB_STEP_SUMMARY
+          if [ -f "${{ env.TF_WORKING_DIR }}/destroy_output.txt" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 "${{ env.TF_WORKING_DIR }}/destroy_output.txt" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
