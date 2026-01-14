@@ -42,7 +42,7 @@ storage:
       bucket: ${TEMPO_S3_BUCKET}
       region: ${AWS_REGION}
       endpoint: s3.${AWS_REGION}.amazonaws.com
-      prefix: ftt-tempo/
+      prefix: ${TEMPO_STORAGE_PREFIX}/
       storage_class: STANDARD_IA
 
 ###############################################################################
@@ -52,7 +52,7 @@ metrics_generator:
   storage:
     path: /var/tempo/generator-wal
     remote_write:
-      - url: http://mimir.lgtm.local:8080/api/v1/push
+      - url: ${MIMIR_REMOTE_WRITE_URL}
         send_exemplars: true
 
 ###############################################################################

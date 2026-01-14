@@ -5,19 +5,19 @@ datasources:
   - name: Mimir
     type: prometheus
     access: proxy
-    url: http://mimir.lgtm.local:8080/prometheus
+    url: ${MIMIR_DATASOURCE_URL}
     isDefault: true
     jsonData:
       httpHeaderName1: X-Scope-OrgID
     secureJsonData:
-      httpHeaderValue1: ftt-lgtm
+      httpHeaderValue1: ${LGTM_TENANT_ID}
     editable: false
 
   # Loki (Logs)
   - name: Loki
     type: loki
     access: proxy
-    url: http://loki.lgtm.local:3100
+    url: ${LOKI_DATASOURCE_URL}
     jsonData:
       httpHeaderName1: X-Scope-OrgID
       derivedFields:
@@ -26,14 +26,14 @@ datasources:
           url: '$${__value.raw}'
           datasourceUid: tempo
     secureJsonData:
-      httpHeaderValue1: ftt-lgtm
+      httpHeaderValue1: ${LGTM_TENANT_ID}
     editable: false
 
   # Tempo (Traces)
   - name: Tempo
     type: tempo
     access: proxy
-    url: http://tempo.lgtm.local:3200
+    url: ${TEMPO_DATASOURCE_URL}
     uid: tempo
     jsonData:
       httpHeaderName1: X-Scope-OrgID
@@ -57,12 +57,12 @@ datasources:
       serviceMap:
         datasourceUid: mimir
     secureJsonData:
-      httpHeaderValue1: ftt-lgtm
+      httpHeaderValue1: ${LGTM_TENANT_ID}
     editable: false
 
   # Pyroscope (Profiles)
   - name: Pyroscope
     type: grafana-pyroscope-datasource
     access: proxy
-    url: http://pyroscope.lgtm.local:4040
+    url: ${PYROSCOPE_DATASOURCE_URL}
     editable: false

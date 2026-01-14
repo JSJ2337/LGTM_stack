@@ -71,7 +71,12 @@ resource "aws_ecs_task_definition" "mimir" {
 
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
-        { name = "MIMIR_S3_BUCKET", value = var.s3_bucket_name }
+        { name = "MIMIR_S3_BUCKET", value = var.s3_bucket_name },
+        { name = "MIMIR_HOST", value = "mimir.${var.cloudmap_namespace_name}" },
+        { name = "MEMBERLIST_PORT", value = "7946" },
+        { name = "MIMIR_BLOCKS_PREFIX", value = "blocks" },
+        { name = "MIMIR_RULES_PREFIX", value = "rules" },
+        { name = "MIMIR_ALERTS_PREFIX", value = "alerts" }
       ]
 
       logConfiguration = {
@@ -118,7 +123,10 @@ resource "aws_ecs_task_definition" "loki" {
 
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
-        { name = "LOKI_S3_BUCKET", value = var.s3_bucket_name }
+        { name = "LOKI_S3_BUCKET", value = var.s3_bucket_name },
+        { name = "LOKI_HOST", value = "loki.${var.cloudmap_namespace_name}" },
+        { name = "MEMBERLIST_PORT", value = "7946" },
+        { name = "LOKI_STORAGE_PREFIX", value = "loki" }
       ]
 
       logConfiguration = {
@@ -166,7 +174,9 @@ resource "aws_ecs_task_definition" "tempo" {
 
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
-        { name = "TEMPO_S3_BUCKET", value = var.s3_bucket_name }
+        { name = "TEMPO_S3_BUCKET", value = var.s3_bucket_name },
+        { name = "TEMPO_STORAGE_PREFIX", value = "tempo" },
+        { name = "MIMIR_REMOTE_WRITE_URL", value = "http://mimir.${var.cloudmap_namespace_name}:8080/api/v1/push" }
       ]
 
       logConfiguration = {
@@ -263,7 +273,12 @@ resource "aws_ecs_task_definition" "grafana" {
         { name = "GF_USERS_ALLOW_SIGN_UP", value = "false" },
         { name = "GF_LOG_LEVEL", value = "info" },
         { name = "GF_DATE_FORMATS_DEFAULT_TIMEZONE", value = "Asia/Seoul" },
-        { name = "TZ", value = "Asia/Seoul" }
+        { name = "TZ", value = "Asia/Seoul" },
+        { name = "MIMIR_DATASOURCE_URL", value = "http://mimir.${var.cloudmap_namespace_name}:8080/prometheus" },
+        { name = "LOKI_DATASOURCE_URL", value = "http://loki.${var.cloudmap_namespace_name}:3100" },
+        { name = "TEMPO_DATASOURCE_URL", value = "http://tempo.${var.cloudmap_namespace_name}:3200" },
+        { name = "PYROSCOPE_DATASOURCE_URL", value = "http://pyroscope.${var.cloudmap_namespace_name}:4040" },
+        { name = "LGTM_TENANT_ID", value = var.alloy_config.mimir_tenant }
       ]
 
       secrets = [
@@ -322,6 +337,7 @@ resource "aws_ecs_task_definition" "alloy" {
       ]
 
       environment = [
+        { name = "AWS_REGION", value = var.aws_region },
         { name = "LOKI_URL", value = "http://loki.${var.cloudmap_namespace_name}:3100/loki/api/v1/push" },
         { name = "LOKI_TENANT", value = var.alloy_config.loki_tenant },
         { name = "MIMIR_URL", value = "http://mimir.${var.cloudmap_namespace_name}:8080/api/v1/push" },

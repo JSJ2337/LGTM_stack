@@ -5,11 +5,11 @@
 // CloudWatch Metrics Exporter
 // =============================================================================
 prometheus.exporter.cloudwatch "aws_metrics" {
-  sts_region = "ap-northeast-2"
+  sts_region = env("AWS_REGION")
 
   discovery {
     type = "AWS/EC2"
-    regions = ["ap-northeast-2"]
+    regions = [env("AWS_REGION")]
 
     metric {
       name = "CPUUtilization"
@@ -32,7 +32,7 @@ prometheus.exporter.cloudwatch "aws_metrics" {
 
   discovery {
     type = "AWS/RDS"
-    regions = ["ap-northeast-2"]
+    regions = [env("AWS_REGION")]
 
     metric {
       name = "CPUUtilization"
@@ -67,7 +67,7 @@ prometheus.exporter.cloudwatch "aws_metrics" {
 
   discovery {
     type = "AWS/ELB"
-    regions = ["ap-northeast-2"]
+    regions = [env("AWS_REGION")]
 
     metric {
       name = "RequestCount"
@@ -90,7 +90,7 @@ prometheus.exporter.cloudwatch "aws_metrics" {
 
   discovery {
     type = "AWS/ApplicationELB"
-    regions = ["ap-northeast-2"]
+    regions = [env("AWS_REGION")]
 
     metric {
       name = "RequestCount"
@@ -113,7 +113,7 @@ prometheus.exporter.cloudwatch "aws_metrics" {
 
   discovery {
     type = "AWS/ECS"
-    regions = ["ap-northeast-2"]
+    regions = [env("AWS_REGION")]
 
     metric {
       name = "CPUUtilization"

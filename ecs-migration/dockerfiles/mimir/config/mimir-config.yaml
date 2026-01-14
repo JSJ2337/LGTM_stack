@@ -49,17 +49,17 @@ memberlist:
   # Fargate 1.4.0+ 에서는 eth1 사용
   bind_addr:
     - "0.0.0.0"
-  bind_port: 7946
+  bind_port: ${MEMBERLIST_PORT}
   # CloudMap Service Discovery로 join
   join_members:
-    - "mimir.lgtm.local:7946"
+    - "${MIMIR_HOST}:${MEMBERLIST_PORT}"
 
 ##############################################################################
 # 4) 블록 스토리지 (S3)
 ##############################################################################
 blocks_storage:
   backend: s3
-  storage_prefix: blocks
+  storage_prefix: ${MIMIR_BLOCKS_PREFIX}
   s3:
     bucket_name: ${MIMIR_S3_BUCKET}
 
@@ -109,7 +109,7 @@ compactor:
 ##############################################################################
 ruler_storage:
   backend: s3
-  storage_prefix: rules
+  storage_prefix: ${MIMIR_RULES_PREFIX}
   s3:
     bucket_name: ${MIMIR_S3_BUCKET}
 
@@ -118,7 +118,7 @@ ruler_storage:
 ##############################################################################
 alertmanager_storage:
   backend: s3
-  storage_prefix: alerts
+  storage_prefix: ${MIMIR_ALERTS_PREFIX}
   s3:
     bucket_name: ${MIMIR_S3_BUCKET}
 

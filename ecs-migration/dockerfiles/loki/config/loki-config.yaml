@@ -22,9 +22,9 @@ common:
 memberlist:
   bind_addr:
     - "0.0.0.0"
-  bind_port: 7946
+  bind_port: ${MEMBERLIST_PORT}
   join_members:
-    - "loki.lgtm.local:7946"
+    - "${LOKI_HOST}:${MEMBERLIST_PORT}"
 
 ########################
 # Ingester (WAL + 청크 튜닝)
@@ -64,7 +64,7 @@ storage_config:
       bucket_name: ${LOKI_S3_BUCKET}
       region: ${AWS_REGION}
       bucket_lookup_type: path
-    storage_prefix: ftt-loki
+    storage_prefix: ${LOKI_STORAGE_PREFIX}
   tsdb_shipper:
     active_index_directory: /loki/index
     cache_location: /loki/index_cache
