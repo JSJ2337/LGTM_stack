@@ -87,6 +87,7 @@ ingester:
     heartbeat_period: 5s
     heartbeat_timeout: 1m
     final_sleep: 0s
+    replication_factor: 1
 
 ##############################################################################
 # 7) Querier 설정
