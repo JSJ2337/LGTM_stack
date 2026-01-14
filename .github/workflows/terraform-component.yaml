@@ -81,12 +81,14 @@ jobs:
         run: |
           # terraform plan 실행 및 exit code 캡처
           # -detailed-exitcode: 0=변경없음, 1=에러, 2=변경있음
+          # tee와 함께 사용 시 exit code 보존을 위해 별도 처리
+          set -o pipefail
           terraform plan \
             -var-file="../common.tfvars" \
             -detailed-exitcode \
             -compact-warnings \
             -out=tfplan \
-            2>&1 | tee plan_output.txt; EXITCODE=${PIPESTATUS[0]}
+            2>&1 | tee plan_output.txt && EXITCODE=0 || EXITCODE=$?
 
           echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
           echo "Terraform plan exit code: $EXITCODE"
