@@ -1,10 +1,10 @@
 # LGTM Stack Terraform Infrastructure Pipeline
 # GitHub Actions Workflow for Terraform infrastructure management
 # 컴포넌트별 순차 실행 방식 (종속성 순서 준수)
+# Apply/Destroy 시 한 번만 승인 → 이후 자동 실행
 
 name: Terraform Infrastructure
 
-# 전체 워크플로우에 대한 권한 설정 (reusable workflow에서 상속)
 permissions:
   id-token: write
   contents: read
@@ -60,7 +60,7 @@ env:
   TF_VERSION: '1.13.5'
   # 종속성 순서대로 나열
   # Stage 1: VPC, IAM (병렬) - 기본 인프라
-  # Stage 2: CloudWatch-Logs, ECR, S3 (병렬) - VPC 불필요 독립 리소스
+  # Stage 2: CloudWatch-Logs, ECR, S3 (병렬) - 독립 리소스
   # Stage 3: Security-Groups, CloudMap (병렬) - VPC 종속
   # Stage 4: ALB - VPC, Security-Groups 종속
   # Stage 5: ECS - 전체 종속
@@ -92,7 +92,6 @@ jobs:
             fi
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
-            # 변경된 파일 기반으로 컴포넌트 감지
             CHANGED_DIRS=$(git diff --name-only HEAD~1 HEAD -- 'ecs-migration/terraform/' | \
               grep -oP 'environments/prod/\K[0-9]+-[a-z-]+' | sort -u | tr '\n' ',' | sed 's/,$//')
 
@@ -100,7 +99,6 @@ jobs:
               echo "components=[]" >> $GITHUB_OUTPUT
               echo "has_changes=false" >> $GITHUB_OUTPUT
             else
-              # JSON 배열 형식으로 변환
               COMPONENTS=$(echo "$CHANGED_DIRS" | tr ',' '\n' | jq -R . | jq -s .)
               echo "components=$COMPONENTS" >> $GITHUB_OUTPUT
               echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -108,13 +106,38 @@ jobs:
           fi
 
   # =============================================================================
+  # Approval Gate - Apply/Destroy 시 한 번만 승인
+  # =============================================================================
+  approval:
+    name: "Approval Gate"
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: >-
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (github.event.inputs.action == 'apply' || github.event.inputs.action == 'destroy')
+    environment:
+      name: prod
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Approval Confirmed
+        run: |
+          echo "## ✅ 승인 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Component:** ${{ github.event.inputs.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "모든 Stage가 자동으로 실행됩니다." >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
   # Stage 1: 기본 인프라 (VPC, IAM - 병렬 실행)
   # =============================================================================
   stage1-vpc:
     name: "Stage 1: VPC"
-    needs: detect-changes
+    needs: [detect-changes, approval]
     if: >-
+      always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (contains(fromJSON(needs.detect-changes.outputs.components), '01-vpc') ||
        contains(fromJSON(needs.detect-changes.outputs.components), '30-security-groups') ||
        contains(fromJSON(needs.detect-changes.outputs.components), '40-cloudmap') ||
@@ -128,9 +151,11 @@ jobs:
 
   stage1-iam:
     name: "Stage 1: IAM"
-    needs: detect-changes
+    needs: [detect-changes, approval]
     if: >-
+      always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (contains(fromJSON(needs.detect-changes.outputs.components), '20-iam') ||
        contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
     uses: ./.github/workflows/terraform-component.yaml
@@ -144,10 +169,11 @@ jobs:
   # =============================================================================
   stage2-cloudwatch-logs:
     name: "Stage 2: CloudWatch Logs"
-    needs: [detect-changes, stage1-vpc, stage1-iam]
+    needs: [detect-changes, approval, stage1-vpc, stage1-iam]
     if: >-
       always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
       (contains(fromJSON(needs.detect-changes.outputs.components), '05-cloudwatch-logs') ||
@@ -160,10 +186,11 @@ jobs:
 
   stage2-ecr:
     name: "Stage 2: ECR"
-    needs: [detect-changes, stage1-vpc, stage1-iam]
+    needs: [detect-changes, approval, stage1-vpc, stage1-iam]
     if: >-
       always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
       (contains(fromJSON(needs.detect-changes.outputs.components), '10-ecr') ||
@@ -176,10 +203,11 @@ jobs:
 
   stage2-s3:
     name: "Stage 2: S3"
-    needs: [detect-changes, stage1-vpc, stage1-iam]
+    needs: [detect-changes, approval, stage1-vpc, stage1-iam]
     if: >-
       always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
       (contains(fromJSON(needs.detect-changes.outputs.components), '15-s3') ||
@@ -195,10 +223,11 @@ jobs:
   # =============================================================================
   stage3-security-groups:
     name: "Stage 3: Security Groups"
-    needs: [detect-changes, stage1-vpc, stage2-cloudwatch-logs, stage2-ecr, stage2-s3]
+    needs: [detect-changes, approval, stage1-vpc, stage2-cloudwatch-logs, stage2-ecr, stage2-s3]
     if: >-
       always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage2-cloudwatch-logs.result == 'success' || needs.stage2-cloudwatch-logs.result == 'skipped') &&
       (needs.stage2-ecr.result == 'success' || needs.stage2-ecr.result == 'skipped') &&
@@ -214,10 +243,11 @@ jobs:
 
   stage3-cloudmap:
     name: "Stage 3: CloudMap"
-    needs: [detect-changes, stage1-vpc, stage2-cloudwatch-logs, stage2-ecr, stage2-s3]
+    needs: [detect-changes, approval, stage1-vpc, stage2-cloudwatch-logs, stage2-ecr, stage2-s3]
     if: >-
       always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage2-cloudwatch-logs.result == 'success' || needs.stage2-cloudwatch-logs.result == 'skipped') &&
       (needs.stage2-ecr.result == 'success' || needs.stage2-ecr.result == 'skipped') &&
@@ -235,10 +265,11 @@ jobs:
   # =============================================================================
   stage4-alb:
     name: "Stage 4: ALB"
-    needs: [detect-changes, stage1-vpc, stage3-security-groups, stage3-cloudmap]
+    needs: [detect-changes, approval, stage1-vpc, stage3-security-groups, stage3-cloudmap]
     if: >-
       always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage3-security-groups.result == 'success' || needs.stage3-security-groups.result == 'skipped') &&
       (needs.stage3-cloudmap.result == 'success' || needs.stage3-cloudmap.result == 'skipped') &&
@@ -257,6 +288,7 @@ jobs:
     name: "Stage 5: ECS"
     needs:
       - detect-changes
+      - approval
       - stage1-vpc
       - stage1-iam
       - stage2-cloudwatch-logs
@@ -268,6 +300,7 @@ jobs:
     if: >-
       always() &&
       needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
@@ -291,6 +324,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
+      - approval
       - stage1-vpc
       - stage1-iam
       - stage2-cloudwatch-logs
@@ -305,6 +339,9 @@ jobs:
       - name: Summary
         run: |
           echo "## Terraform Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ github.event.inputs.action || 'plan' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Approval:** ${{ needs.approval.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Stage | Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY

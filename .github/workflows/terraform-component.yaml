@@ -1,6 +1,6 @@
 # Terraform Component Reusable Workflow
 # 개별 컴포넌트에 대한 Terraform 실행
-# Plan → 승인 → Apply 단계로 분리
+# 승인은 메인 워크플로우에서 한 번만 수행
 
 name: Terraform Component
 
@@ -79,13 +79,11 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: bash
         run: |
-          # -detailed-exitcode 없이 실행, plan 결과로 변경 여부 판단
           terraform plan \
             -var-file="../common.tfvars" \
             -compact-warnings \
             -out=tfplan 2>&1 | tee plan_output.txt
 
-          # plan 결과에서 변경 여부 확인
           if grep -q "No changes" plan_output.txt; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "No changes detected"
@@ -145,7 +143,7 @@ jobs:
           echo "- 2: Changes detected" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Apply Job - 승인 후 실행 (Environment Protection Rules 사용)
+  # Apply Job - 승인 없이 자동 실행 (메인 워크플로우에서 승인)
   # =============================================================================
   apply:
     name: "Apply - ${{ inputs.component }}"
@@ -154,12 +152,6 @@ jobs:
     if: |
       inputs.action == 'apply' &&
       needs.plan.outputs.has_changes == 'true'
-
-    # GitHub Environment 설정 (승인 필요)
-    # Repository Settings → Environments → 'prod' 환경 사용
-    environment:
-      name: prod
-      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     env:
       TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
@@ -202,7 +194,7 @@ jobs:
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          echo "✅ 승인됨 - ${{ inputs.component }} Apply 시작..."
+          echo "✅ ${{ inputs.component }} Apply 시작..."
           terraform apply -auto-approve -compact-warnings tfplan
 
       - name: Apply Summary
@@ -213,17 +205,12 @@ jobs:
           echo "✅ Apply 완료" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Destroy Job - 승인 후 실행
+  # Destroy Job - 승인 없이 자동 실행 (메인 워크플로우에서 승인)
   # =============================================================================
   destroy:
     name: "Destroy - ${{ inputs.component }}"
     runs-on: ubuntu-latest
     if: inputs.action == 'destroy'
-
-    # Destroy도 prod 환경에서 승인 필요
-    environment:
-      name: prod
-      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     env:
       TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
@@ -260,7 +247,7 @@ jobs:
       - name: Terraform Destroy
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          echo "⚠️ 승인됨 - ${{ inputs.component }} Destroy 시작..."
+          echo "⚠️ ${{ inputs.component }} Destroy 시작..."
           terraform destroy \
             -var-file="../common.tfvars" \
             -compact-warnings \
