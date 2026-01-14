@@ -17,6 +17,11 @@ pyroscopedb:
   data_path: /data
   max_block_duration: 1h
 
+ingester:
+  lifecycler:
+    ring:
+      replication_factor: 1
+
 compactor:
   deletion_delay: 12h
 
