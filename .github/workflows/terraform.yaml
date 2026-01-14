@@ -1,7 +1,6 @@
 # LGTM Stack Terraform Infrastructure Pipeline
 # GitHub Actions Workflow for Terraform infrastructure management
-# 컴포넌트별 순차 실행 방식 (종속성 순서 준수)
-# Apply: 전체 Plan → 승인 → 전체 Apply
+# Stage별 순차 실행: Plan → Apply 완료 후 다음 Stage 진행
 
 name: Terraform Infrastructure
 
@@ -61,416 +60,189 @@ env:
 
 jobs:
   # =============================================================================
-  # Detect Changes
-  # =============================================================================
-  detect-changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    outputs:
-      components: ${{ steps.detect.outputs.components }}
-      has_changes: ${{ steps.detect.outputs.has_changes }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Detect Changed Components
-        id: detect
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            if [ "${{ github.event.inputs.component }}" == "all" ]; then
-              echo 'components=["01-vpc","05-cloudwatch-logs","10-ecr","15-s3","20-iam","30-security-groups","40-cloudmap","50-alb","60-ecs"]' >> $GITHUB_OUTPUT
-            else
-              echo 'components=["${{ github.event.inputs.component }}"]' >> $GITHUB_OUTPUT
-            fi
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            CHANGED_DIRS=$(git diff --name-only HEAD~1 HEAD -- 'ecs-migration/terraform/' | \
-              grep -oP 'environments/prod/\K[0-9]+-[a-z-]+' | sort -u | tr '\n' ',' | sed 's/,$//')
-
-            if [ -z "$CHANGED_DIRS" ]; then
-              echo "components=[]" >> $GITHUB_OUTPUT
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-            else
-              COMPONENTS=$(echo "$CHANGED_DIRS" | tr ',' '\n' | jq -R . | jq -s .)
-              echo "components=$COMPONENTS" >> $GITHUB_OUTPUT
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-  # =============================================================================
-  # Plan Stage - 모든 컴포넌트 Plan (승인 전)
-  # =============================================================================
-  plan-stage1-vpc:
-    name: "Plan: VPC"
-    needs: detect-changes
-    if: >-
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '01-vpc') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '30-security-groups') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '40-cloudmap') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 01-vpc
-      action: plan
-    secrets: inherit
-
-  plan-stage1-iam:
-    name: "Plan: IAM"
-    needs: detect-changes
-    if: >-
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '20-iam') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 20-iam
-      action: plan
-    secrets: inherit
-
-  plan-stage2-cloudwatch-logs:
-    name: "Plan: CloudWatch Logs"
-    needs: [detect-changes, plan-stage1-vpc, plan-stage1-iam]
-    if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage1-iam.result == 'success' || needs.plan-stage1-iam.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '05-cloudwatch-logs') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 05-cloudwatch-logs
-      action: plan
-    secrets: inherit
-
-  plan-stage2-ecr:
-    name: "Plan: ECR"
-    needs: [detect-changes, plan-stage1-vpc, plan-stage1-iam]
-    if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage1-iam.result == 'success' || needs.plan-stage1-iam.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '10-ecr') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 10-ecr
-      action: plan
-    secrets: inherit
-
-  plan-stage2-s3:
-    name: "Plan: S3"
-    needs: [detect-changes, plan-stage1-vpc, plan-stage1-iam]
-    if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage1-iam.result == 'success' || needs.plan-stage1-iam.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '15-s3') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 15-s3
-      action: plan
-    secrets: inherit
-
-  plan-stage3-security-groups:
-    name: "Plan: Security Groups"
-    needs: [detect-changes, plan-stage1-vpc, plan-stage2-cloudwatch-logs, plan-stage2-ecr, plan-stage2-s3]
-    if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage2-cloudwatch-logs.result == 'success' || needs.plan-stage2-cloudwatch-logs.result == 'skipped') &&
-      (needs.plan-stage2-ecr.result == 'success' || needs.plan-stage2-ecr.result == 'skipped') &&
-      (needs.plan-stage2-s3.result == 'success' || needs.plan-stage2-s3.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '30-security-groups') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 30-security-groups
-      action: plan
-    secrets: inherit
-
-  plan-stage3-cloudmap:
-    name: "Plan: CloudMap"
-    needs: [detect-changes, plan-stage1-vpc, plan-stage2-cloudwatch-logs, plan-stage2-ecr, plan-stage2-s3]
-    if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage2-cloudwatch-logs.result == 'success' || needs.plan-stage2-cloudwatch-logs.result == 'skipped') &&
-      (needs.plan-stage2-ecr.result == 'success' || needs.plan-stage2-ecr.result == 'skipped') &&
-      (needs.plan-stage2-s3.result == 'success' || needs.plan-stage2-s3.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '40-cloudmap') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 40-cloudmap
-      action: plan
-    secrets: inherit
-
-  plan-stage4-alb:
-    name: "Plan: ALB"
-    needs: [detect-changes, plan-stage1-vpc, plan-stage3-security-groups, plan-stage3-cloudmap]
-    if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage3-security-groups.result == 'success' || needs.plan-stage3-security-groups.result == 'skipped') &&
-      (needs.plan-stage3-cloudmap.result == 'success' || needs.plan-stage3-cloudmap.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 50-alb
-      action: plan
-    secrets: inherit
-
-  plan-stage5-ecs:
-    name: "Plan: ECS"
-    needs:
-      - detect-changes
-      - plan-stage1-vpc
-      - plan-stage1-iam
-      - plan-stage2-cloudwatch-logs
-      - plan-stage2-ecr
-      - plan-stage2-s3
-      - plan-stage3-security-groups
-      - plan-stage3-cloudmap
-      - plan-stage4-alb
-    if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs') &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage1-iam.result == 'success' || needs.plan-stage1-iam.result == 'skipped') &&
-      (needs.plan-stage2-cloudwatch-logs.result == 'success' || needs.plan-stage2-cloudwatch-logs.result == 'skipped') &&
-      (needs.plan-stage2-ecr.result == 'success' || needs.plan-stage2-ecr.result == 'skipped') &&
-      (needs.plan-stage2-s3.result == 'success' || needs.plan-stage2-s3.result == 'skipped') &&
-      (needs.plan-stage3-security-groups.result == 'success' || needs.plan-stage3-security-groups.result == 'skipped') &&
-      (needs.plan-stage3-cloudmap.result == 'success' || needs.plan-stage3-cloudmap.result == 'skipped') &&
-      (needs.plan-stage4-alb.result == 'success' || needs.plan-stage4-alb.result == 'skipped')
-    uses: ./.github/workflows/terraform-component.yaml
-    with:
-      component: 60-ecs
-      action: plan
-    secrets: inherit
-
-  # =============================================================================
-  # Approval Gate - Plan 완료 후 Apply/Destroy 승인
+  # Approval Gate - Apply/Destroy 시 승인 (맨 처음 한 번)
   # =============================================================================
   approval:
     name: "Approval Gate"
-    needs:
-      - detect-changes
-      - plan-stage1-vpc
-      - plan-stage1-iam
-      - plan-stage2-cloudwatch-logs
-      - plan-stage2-ecr
-      - plan-stage2-s3
-      - plan-stage3-security-groups
-      - plan-stage3-cloudmap
-      - plan-stage4-alb
-      - plan-stage5-ecs
     runs-on: ubuntu-latest
     if: >-
-      always() &&
-      needs.detect-changes.outputs.has_changes == 'true' &&
-      (github.event.inputs.action == 'apply' || github.event.inputs.action == 'destroy') &&
-      (needs.plan-stage1-vpc.result == 'success' || needs.plan-stage1-vpc.result == 'skipped') &&
-      (needs.plan-stage1-iam.result == 'success' || needs.plan-stage1-iam.result == 'skipped') &&
-      (needs.plan-stage2-cloudwatch-logs.result == 'success' || needs.plan-stage2-cloudwatch-logs.result == 'skipped') &&
-      (needs.plan-stage2-ecr.result == 'success' || needs.plan-stage2-ecr.result == 'skipped') &&
-      (needs.plan-stage2-s3.result == 'success' || needs.plan-stage2-s3.result == 'skipped') &&
-      (needs.plan-stage3-security-groups.result == 'success' || needs.plan-stage3-security-groups.result == 'skipped') &&
-      (needs.plan-stage3-cloudmap.result == 'success' || needs.plan-stage3-cloudmap.result == 'skipped') &&
-      (needs.plan-stage4-alb.result == 'success' || needs.plan-stage4-alb.result == 'skipped') &&
-      (needs.plan-stage5-ecs.result == 'success' || needs.plan-stage5-ecs.result == 'skipped')
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.action == 'apply' || github.event.inputs.action == 'destroy')
     environment:
       name: prod
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: Approval Confirmed
         run: |
-          echo "## ✅ Plan 완료 - 승인됨" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ 승인 완료" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "**Component:** ${{ github.event.inputs.component }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "${{ github.event.inputs.action }} 실행을 시작합니다." >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Apply/Destroy Stage - 승인 후 실행
+  # Stage 1: VPC, IAM (종속성 없음 - 병렬 실행)
   # =============================================================================
-  apply-stage1-vpc:
-    name: "Apply: VPC"
-    needs: [detect-changes, approval]
+  stage1-vpc:
+    name: "Stage1: VPC"
+    needs: [approval]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '01-vpc') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '30-security-groups') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '40-cloudmap') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '01-vpc')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 01-vpc
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage1-iam:
-    name: "Apply: IAM"
-    needs: [detect-changes, approval]
+  stage1-iam:
+    name: "Stage1: IAM"
+    needs: [approval]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '20-iam') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '20-iam')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 20-iam
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage2-cloudwatch-logs:
-    name: "Apply: CloudWatch Logs"
-    needs: [detect-changes, approval, apply-stage1-vpc, apply-stage1-iam]
+  # =============================================================================
+  # Stage 2: CloudWatch Logs, ECR, S3 (VPC 불필요 - Stage1 완료 후)
+  # =============================================================================
+  stage2-cloudwatch-logs:
+    name: "Stage2: CloudWatch Logs"
+    needs: [approval, stage1-vpc, stage1-iam]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (needs.apply-stage1-vpc.result == 'success' || needs.apply-stage1-vpc.result == 'skipped') &&
-      (needs.apply-stage1-iam.result == 'success' || needs.apply-stage1-iam.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '05-cloudwatch-logs') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '05-cloudwatch-logs')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 05-cloudwatch-logs
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage2-ecr:
-    name: "Apply: ECR"
-    needs: [detect-changes, approval, apply-stage1-vpc, apply-stage1-iam]
+  stage2-ecr:
+    name: "Stage2: ECR"
+    needs: [approval, stage1-vpc, stage1-iam]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (needs.apply-stage1-vpc.result == 'success' || needs.apply-stage1-vpc.result == 'skipped') &&
-      (needs.apply-stage1-iam.result == 'success' || needs.apply-stage1-iam.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '10-ecr') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '10-ecr')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 10-ecr
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage2-s3:
-    name: "Apply: S3"
-    needs: [detect-changes, approval, apply-stage1-vpc, apply-stage1-iam]
+  stage2-s3:
+    name: "Stage2: S3"
+    needs: [approval, stage1-vpc, stage1-iam]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (needs.apply-stage1-vpc.result == 'success' || needs.apply-stage1-vpc.result == 'skipped') &&
-      (needs.apply-stage1-iam.result == 'success' || needs.apply-stage1-iam.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '15-s3') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '15-s3')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 15-s3
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage3-security-groups:
-    name: "Apply: Security Groups"
-    needs: [detect-changes, approval, apply-stage1-vpc, apply-stage2-cloudwatch-logs, apply-stage2-ecr, apply-stage2-s3]
+  # =============================================================================
+  # Stage 3: Security Groups, CloudMap (VPC 필요 - Stage1 VPC Apply 완료 후)
+  # =============================================================================
+  stage3-security-groups:
+    name: "Stage3: Security Groups"
+    needs: [approval, stage1-vpc, stage2-cloudwatch-logs, stage2-ecr, stage2-s3]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (needs.apply-stage1-vpc.result == 'success' || needs.apply-stage1-vpc.result == 'skipped') &&
-      (needs.apply-stage2-cloudwatch-logs.result == 'success' || needs.apply-stage2-cloudwatch-logs.result == 'skipped') &&
-      (needs.apply-stage2-ecr.result == 'success' || needs.apply-stage2-ecr.result == 'skipped') &&
-      (needs.apply-stage2-s3.result == 'success' || needs.apply-stage2-s3.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '30-security-groups') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage2-cloudwatch-logs.result == 'success' || needs.stage2-cloudwatch-logs.result == 'skipped') &&
+      (needs.stage2-ecr.result == 'success' || needs.stage2-ecr.result == 'skipped') &&
+      (needs.stage2-s3.result == 'success' || needs.stage2-s3.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '30-security-groups')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 30-security-groups
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage3-cloudmap:
-    name: "Apply: CloudMap"
-    needs: [detect-changes, approval, apply-stage1-vpc, apply-stage2-cloudwatch-logs, apply-stage2-ecr, apply-stage2-s3]
+  stage3-cloudmap:
+    name: "Stage3: CloudMap"
+    needs: [approval, stage1-vpc, stage2-cloudwatch-logs, stage2-ecr, stage2-s3]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (needs.apply-stage1-vpc.result == 'success' || needs.apply-stage1-vpc.result == 'skipped') &&
-      (needs.apply-stage2-cloudwatch-logs.result == 'success' || needs.apply-stage2-cloudwatch-logs.result == 'skipped') &&
-      (needs.apply-stage2-ecr.result == 'success' || needs.apply-stage2-ecr.result == 'skipped') &&
-      (needs.apply-stage2-s3.result == 'success' || needs.apply-stage2-s3.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '40-cloudmap') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage2-cloudwatch-logs.result == 'success' || needs.stage2-cloudwatch-logs.result == 'skipped') &&
+      (needs.stage2-ecr.result == 'success' || needs.stage2-ecr.result == 'skipped') &&
+      (needs.stage2-s3.result == 'success' || needs.stage2-s3.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '40-cloudmap')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 40-cloudmap
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage4-alb:
-    name: "Apply: ALB"
-    needs: [detect-changes, approval, apply-stage1-vpc, apply-stage3-security-groups, apply-stage3-cloudmap]
+  # =============================================================================
+  # Stage 4: ALB (VPC, Security Groups 필요 - Stage3 완료 후)
+  # =============================================================================
+  stage4-alb:
+    name: "Stage4: ALB"
+    needs: [approval, stage1-vpc, stage3-security-groups, stage3-cloudmap]
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      (needs.apply-stage1-vpc.result == 'success' || needs.apply-stage1-vpc.result == 'skipped') &&
-      (needs.apply-stage3-security-groups.result == 'success' || needs.apply-stage3-security-groups.result == 'skipped') &&
-      (needs.apply-stage3-cloudmap.result == 'success' || needs.apply-stage3-cloudmap.result == 'skipped') &&
-      (contains(fromJSON(needs.detect-changes.outputs.components), '50-alb') ||
-       contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs'))
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage3-security-groups.result == 'success' || needs.stage3-security-groups.result == 'skipped') &&
+      (needs.stage3-cloudmap.result == 'success' || needs.stage3-cloudmap.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '50-alb')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 50-alb
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
-  apply-stage5-ecs:
-    name: "Apply: ECS"
+  # =============================================================================
+  # Stage 5: ECS (모든 리소스 필요 - Stage4 완료 후)
+  # =============================================================================
+  stage5-ecs:
+    name: "Stage5: ECS"
     needs:
-      - detect-changes
       - approval
-      - apply-stage1-vpc
-      - apply-stage1-iam
-      - apply-stage2-cloudwatch-logs
-      - apply-stage2-ecr
-      - apply-stage2-s3
-      - apply-stage3-security-groups
-      - apply-stage3-cloudmap
-      - apply-stage4-alb
+      - stage1-vpc
+      - stage1-iam
+      - stage2-cloudwatch-logs
+      - stage2-ecr
+      - stage2-s3
+      - stage3-security-groups
+      - stage3-cloudmap
+      - stage4-alb
     if: >-
       always() &&
-      needs.approval.result == 'success' &&
-      contains(fromJSON(needs.detect-changes.outputs.components), '60-ecs') &&
-      (needs.apply-stage1-vpc.result == 'success' || needs.apply-stage1-vpc.result == 'skipped') &&
-      (needs.apply-stage1-iam.result == 'success' || needs.apply-stage1-iam.result == 'skipped') &&
-      (needs.apply-stage2-cloudwatch-logs.result == 'success' || needs.apply-stage2-cloudwatch-logs.result == 'skipped') &&
-      (needs.apply-stage2-ecr.result == 'success' || needs.apply-stage2-ecr.result == 'skipped') &&
-      (needs.apply-stage2-s3.result == 'success' || needs.apply-stage2-s3.result == 'skipped') &&
-      (needs.apply-stage3-security-groups.result == 'success' || needs.apply-stage3-security-groups.result == 'skipped') &&
-      (needs.apply-stage3-cloudmap.result == 'success' || needs.apply-stage3-cloudmap.result == 'skipped') &&
-      (needs.apply-stage4-alb.result == 'success' || needs.apply-stage4-alb.result == 'skipped')
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage1-iam.result == 'success' || needs.stage1-iam.result == 'skipped') &&
+      (needs.stage2-cloudwatch-logs.result == 'success' || needs.stage2-cloudwatch-logs.result == 'skipped') &&
+      (needs.stage2-ecr.result == 'success' || needs.stage2-ecr.result == 'skipped') &&
+      (needs.stage2-s3.result == 'success' || needs.stage2-s3.result == 'skipped') &&
+      (needs.stage3-security-groups.result == 'success' || needs.stage3-security-groups.result == 'skipped') &&
+      (needs.stage3-cloudmap.result == 'success' || needs.stage3-cloudmap.result == 'skipped') &&
+      (needs.stage4-alb.result == 'success' || needs.stage4-alb.result == 'skipped') &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '60-ecs')
     uses: ./.github/workflows/terraform-component.yaml
     with:
       component: 60-ecs
-      action: ${{ github.event.inputs.action }}
+      action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
   # =============================================================================
@@ -480,26 +252,16 @@ jobs:
     name: Pipeline Summary
     runs-on: ubuntu-latest
     needs:
-      - detect-changes
-      - plan-stage1-vpc
-      - plan-stage1-iam
-      - plan-stage2-cloudwatch-logs
-      - plan-stage2-ecr
-      - plan-stage2-s3
-      - plan-stage3-security-groups
-      - plan-stage3-cloudmap
-      - plan-stage4-alb
-      - plan-stage5-ecs
       - approval
-      - apply-stage1-vpc
-      - apply-stage1-iam
-      - apply-stage2-cloudwatch-logs
-      - apply-stage2-ecr
-      - apply-stage2-s3
-      - apply-stage3-security-groups
-      - apply-stage3-cloudmap
-      - apply-stage4-alb
-      - apply-stage5-ecs
+      - stage1-vpc
+      - stage1-iam
+      - stage2-cloudwatch-logs
+      - stage2-ecr
+      - stage2-s3
+      - stage3-security-groups
+      - stage3-cloudmap
+      - stage4-alb
+      - stage5-ecs
     if: always()
     steps:
       - name: Summary
@@ -507,33 +269,17 @@ jobs:
           echo "## Terraform Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Action:** ${{ github.event.inputs.action || 'plan' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Component:** ${{ github.event.inputs.component || 'all' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Plan Results" >> $GITHUB_STEP_SUMMARY
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
           echo "| Stage | Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 1 | VPC | ${{ needs.plan-stage1-vpc.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 1 | IAM | ${{ needs.plan-stage1-iam.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 2 | CloudWatch Logs | ${{ needs.plan-stage2-cloudwatch-logs.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 2 | ECR | ${{ needs.plan-stage2-ecr.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 2 | S3 | ${{ needs.plan-stage2-s3.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 3 | Security Groups | ${{ needs.plan-stage3-security-groups.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 3 | CloudMap | ${{ needs.plan-stage3-cloudmap.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 4 | ALB | ${{ needs.plan-stage4-alb.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 5 | ECS | ${{ needs.plan-stage5-ecs.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Approval: ${{ needs.approval.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event.inputs.action }}" == "apply" ] || [ "${{ github.event.inputs.action }}" == "destroy" ]; then
-            echo "### ${{ github.event.inputs.action }} Results" >> $GITHUB_STEP_SUMMARY
-            echo "| Stage | Component | Status |" >> $GITHUB_STEP_SUMMARY
-            echo "|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-            echo "| 1 | VPC | ${{ needs.apply-stage1-vpc.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 1 | IAM | ${{ needs.apply-stage1-iam.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 2 | CloudWatch Logs | ${{ needs.apply-stage2-cloudwatch-logs.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 2 | ECR | ${{ needs.apply-stage2-ecr.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 2 | S3 | ${{ needs.apply-stage2-s3.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 3 | Security Groups | ${{ needs.apply-stage3-security-groups.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 3 | CloudMap | ${{ needs.apply-stage3-cloudmap.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 4 | ALB | ${{ needs.apply-stage4-alb.result }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 5 | ECS | ${{ needs.apply-stage5-ecs.result }} |" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "| 1 | VPC | ${{ needs.stage1-vpc.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 | IAM | ${{ needs.stage1-iam.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | CloudWatch Logs | ${{ needs.stage2-cloudwatch-logs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | ECR | ${{ needs.stage2-ecr.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | S3 | ${{ needs.stage2-s3.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3 | Security Groups | ${{ needs.stage3-security-groups.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3 | CloudMap | ${{ needs.stage3-cloudmap.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4 | ALB | ${{ needs.stage4-alb.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5 | ECS | ${{ needs.stage5-ecs.result }} |" >> $GITHUB_STEP_SUMMARY
