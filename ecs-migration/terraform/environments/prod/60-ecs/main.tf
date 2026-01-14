@@ -45,11 +45,6 @@ data "terraform_remote_state" "vpc" {
     key    = "lgtm-ecs/prod/01-vpc/terraform.tfstate"
     region = var.aws_region
   }
-
-  defaults = {
-    vpc_id             = ""
-    private_subnet_ids = []
-  }
 }
 
 data "terraform_remote_state" "ecr" {
@@ -59,10 +54,6 @@ data "terraform_remote_state" "ecr" {
     bucket = var.state_bucket
     key    = "lgtm-ecs/prod/10-ecr/terraform.tfstate"
     region = var.aws_region
-  }
-
-  defaults = {
-    repository_urls = {}
   }
 }
 
@@ -74,13 +65,6 @@ data "terraform_remote_state" "iam" {
     key    = "lgtm-ecs/prod/20-iam/terraform.tfstate"
     region = var.aws_region
   }
-
-  defaults = {
-    task_execution_role_arn = ""
-    lgtm_task_role_arn      = ""
-    grafana_task_role_arn   = ""
-    alloy_task_role_arn     = ""
-  }
 }
 
 data "terraform_remote_state" "security_groups" {
@@ -90,10 +74,6 @@ data "terraform_remote_state" "security_groups" {
     bucket = var.state_bucket
     key    = "lgtm-ecs/prod/30-security-groups/terraform.tfstate"
     region = var.aws_region
-  }
-
-  defaults = {
-    ecs_security_group_id = ""
   }
 }
 
@@ -105,11 +85,6 @@ data "terraform_remote_state" "cloudmap" {
     key    = "lgtm-ecs/prod/40-cloudmap/terraform.tfstate"
     region = var.aws_region
   }
-
-  defaults = {
-    service_arns   = {}
-    namespace_name = ""
-  }
 }
 
 data "terraform_remote_state" "alb" {
@@ -120,10 +95,6 @@ data "terraform_remote_state" "alb" {
     key    = "lgtm-ecs/prod/50-alb/terraform.tfstate"
     region = var.aws_region
   }
-
-  defaults = {
-    target_group_arns = {}
-  }
 }
 
 data "terraform_remote_state" "cloudwatch_logs" {
@@ -133,10 +104,6 @@ data "terraform_remote_state" "cloudwatch_logs" {
     bucket = var.state_bucket
     key    = "lgtm-ecs/prod/05-cloudwatch-logs/terraform.tfstate"
     region = var.aws_region
-  }
-
-  defaults = {
-    log_group_names = {}
   }
 }
 

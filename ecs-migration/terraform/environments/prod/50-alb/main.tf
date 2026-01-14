@@ -44,11 +44,6 @@ data "terraform_remote_state" "vpc" {
     key    = "lgtm-ecs/prod/01-vpc/terraform.tfstate"
     region = var.aws_region
   }
-
-  defaults = {
-    vpc_id            = ""
-    public_subnet_ids = []
-  }
 }
 
 data "terraform_remote_state" "security_groups" {
@@ -58,10 +53,6 @@ data "terraform_remote_state" "security_groups" {
     bucket = var.state_bucket
     key    = "lgtm-ecs/prod/30-security-groups/terraform.tfstate"
     region = var.aws_region
-  }
-
-  defaults = {
-    alb_security_group_id = ""
   }
 }
 

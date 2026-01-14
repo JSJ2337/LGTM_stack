@@ -44,11 +44,6 @@ data "terraform_remote_state" "vpc" {
     key    = "lgtm-ecs/prod/01-vpc/terraform.tfstate"
     region = var.aws_region
   }
-
-  defaults = {
-    vpc_id   = ""
-    vpc_cidr = ""
-  }
 }
 
 # -----------------------------------------------------------------------------
