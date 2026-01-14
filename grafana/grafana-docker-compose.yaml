@@ -1,89 +1,81 @@
+# ============================================================================
+# Grafana Docker Compose (시각화 대시보드)
+# ============================================================================
+# 실행: docker-compose --env-file ../.env -f grafana-docker-compose.yaml up -d
+# ============================================================================
+
 services:
-  grafana:
-    image: grafana/grafana:12.1.0   # Grafana OSS 최신 이미지
-    container_name: ftt-grafana         # 컨테이너 이름을 고정하여 관리 용이성 확보
+  # ─────────────────────────────────────────────────────────────────────────
+  # Grafana
+  # ─────────────────────────────────────────────────────────────────────────
+  jsj-grafana:
+    image: grafana/grafana:${GRAFANA_VERSION}
+    container_name: ${CONTAINER_PREFIX}-grafana
+    user: "0:0"
+    restart: unless-stopped
 
     ports:
-      - "3000:3000"               # 호스트 포트:컨테이너 포트 매핑 (웹 UI 접속용)
+      - "${GRAFANA_HTTP_PORT}:3000"
 
-    networks:
-      - mimir-net                  # 기존에 생성된 Docker 네트워크 연결
-
-    user: "0:0"
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # 환경 변수 선언 (리스트 형식)
-    # Grafana 설정, 보안, 멀티 테넌시 헤더 등을 정의합니다.
-    # ──────────────────────────────────────────────────────────────────────────
-    environment:
-      # ── Grafana 기본 관리자 계정 설정 ───────────────────────────────────
-      - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}           # 초기 관리자 계정 사용자명
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD}   # 초기 관리자 계정 비밀번호 (.env에서 주입)
-      - GF_USERS_ALLOW_SIGN_UP=false           # 사용자가 스스로 회원가입 하는 것을 비활성화
-
-      # ── 멀티-테넌트 조회 헤더 설정 ──────────────────────────────────────
-      # X-Scope-OrgID 헤더에 파이프(|) 구분자로 각 테넌트 ID를 나열합니다.
-      #- GF_DATASOURCE_TENANTS=anonymous|aws-rag  # 여러 AWS 계정(테넌트) 조회용
-
-      # ── (선택) 추가 추천 옵션 ──────────────────────────────────────────
-      - GF_SERVER_ROOT_URL=https://lgtm.four33.com
-      #     # Grafana의 외부 접근 URL을 고정하려면 설정
-      - GF_LOG_LEVEL=debug
-      #     # 로그 레벨 설정 (debug | info | warn | error)
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel
-      #     # 컨테이너 시작 시 플러그인 설치 예시
-      - GF_DATE_FORMATS_DEFAULT_TIMEZONE=Asia/Seoul
-      - TZ=Asia/Seoul
-      #     # 기본 타임존을 한국 시간(KST)으로 지정
-      # - GF_UNIFIED_ALERTING_ENABLED=true          # 통합 알림 켜기
-      # - GF_UNIFIED_ALERTING_STATE_HISTORY_ENABLED=true
-      # - GF_UNIFIED_ALERTING_STATE_HISTORY_BACKEND=prometheus
-      # - GF_UNIFIED_ALERTING_STATE_HISTORY_PROMETHEUS_TARGET_DATASOURCE_UID=ceucwhksilukge  # 네 Mimir DS UID
-      # - GF_FEATURE_TOGGLES_ENABLE=alertingCentralAlertHistory
-      # History UI 보려면 토글 필요 (OSS)
-      - GF_FEATURE_TOGGLES_ENABLE=alertingCentralAlertHistory
-
-      # Alert State History를 Loki로 기록
-      - GF_UNIFIED_ALERTING_STATE_HISTORY_ENABLED=true
-      - GF_UNIFIED_ALERTING_STATE_HISTORY_BACKEND=loki
-
-      # Loki 엔드포인트 (읽기/쓰기 분리 안했으면 이 한 줄이면 됨)
-      - GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_REMOTE_URL=http://ftt-loki:3100
-
-      # 🔴 멀티 테넌시일 때 필수: 이 값이 X-Scope-OrgID로 전송됩니다
-      - GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_TENANT_ID=ftt-lgtm
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # 볼륨 마운트 설정
-    # Grafana 데이터 영속화 및 프로비저닝 파일 로드를 위해 사용
-    # ──────────────────────────────────────────────────────────────────────────
     volumes:
       - ./grafana-data:/var/lib/grafana
-          # Grafana의 데이터베이스, 대시보드, 플러그인 등 상태 저장소
-
       - ./config/grafana-provisioning:/etc/grafana/provisioning:ro
-          # Datasource와 Dashboard YAML 파일을 Provisioning으로 로드
       - ./config/plugins:/var/lib/grafana/plugins
       - ./config/433_logo.svg:/usr/share/grafana/public/img/grafana_icon.svg
       - ./config/433_logo.svg:/usr/share/grafana/public/img/grafana_typelogo.svg
       - ./config/433_logo.svg:/usr/share/grafana/public/img/grafana_com_auth_logo.svg
       - ./config/433_logo.png:/usr/share/grafana/public/img/fav32.png
       - ./config/433_logo.svg:/usr/share/grafana/public/build/static/img/grafana_icon.1e0deb6b.svg
-    restart: unless-stopped    # 컨테이너 비정상 종료 시 자동 재시작 정책
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 외부 Docker 네트워크 정의
-# 이미 생성된 mimir-net 네트워크를 사용하도록 설정
-# ──────────────────────────────────────────────────────────────────────────────
+    environment:
+      # 기본 관리자 계정
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # 서버 설정
+      GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL}
+      GF_LOG_LEVEL: ${GF_LOG_LEVEL}
+      # 플러그인 및 타임존
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+      GF_DATE_FORMATS_DEFAULT_TIMEZONE: ${TZ}
+      TZ: ${TZ}
+      # Alert State History (Loki)
+      GF_FEATURE_TOGGLES_ENABLE: alertingCentralAlertHistory
+      GF_UNIFIED_ALERTING_STATE_HISTORY_ENABLED: "true"
+      GF_UNIFIED_ALERTING_STATE_HISTORY_BACKEND: loki
+      GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_REMOTE_URL: http://${CONTAINER_PREFIX}-loki:3100
+      GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_TENANT_ID: ${DEFAULT_TENANT}
+
+    networks:
+      - ${DOCKER_NETWORK}
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"
+
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
+    labels:
+      - "app=grafana"
+      - "component=visualization"
+      - "environment=production"
+      - "version=${GRAFANA_VERSION}"
+
 networks:
-  mimir-net:
-    external: true             # Compose가 자동 생성하지 않고 기존 네트워크 활용
-    name: mimir-net            # 실제 네트워크 이름과 일치시켜야 함
+  jsj-lgtm-net:
+    name: ${DOCKER_NETWORK}
+    external: true
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Docker 볼륨 정의
-# Grafana 데이터 영속화용 로컬 볼륨을 선언
-# ──────────────────────────────────────────────────────────────────────────────
 volumes:
   grafana-data:
-    driver: local              # 로컬 드라이버 사용 (경량, 간편)
+    driver: local

@@ -1,26 +1,24 @@
 # Pyroscope ECS Fargate Dockerfile
-# Version: 1.11.1 (EC2 docker-compose 설정 기반)
+# 빌드: docker build --build-arg VERSION=1.13.5 -t lgtm-pyroscope .
 
-FROM grafana/pyroscope:1.11.1
+ARG VERSION=1.13.5
+FROM grafana/pyroscope:${VERSION}
 
 # 메타데이터
 LABEL maintainer="jsj"
 LABEL app="lgtm-pyroscope"
-LABEL version="1.11.1"
 LABEL environment="production"
 
 # 설정 파일 복사 (Distroless 이미지는 shell 없음, COPY만 가능)
 COPY config/pyroscope-config.yaml /etc/pyroscope/config.yaml
 
-# 환경변수 기본값
-ENV AWS_REGION=ap-northeast-2
-ENV PYROSCOPE_S3_BUCKET=jsj-lgtm-data-s3
+# 환경변수는 런타임에 주입 (하드코딩 금지)
+# AWS_REGION, PYROSCOPE_S3_BUCKET 등은 ECS Task Definition에서 설정
 
 # 포트 노출
 EXPOSE 4040 4041
 
-# 헬스체크 비활성화 (Distroless에서는 wget/curl 없음, ECS Task Definition에서 설정)
-# HEALTHCHECK 제거 - ALB 헬스체크 사용
+# 헬스체크 비활성화 (Distroless에서는 wget/curl 없음, ALB 헬스체크 사용)
 
 # Pyroscope 실행
 CMD ["-config.file=/etc/pyroscope/config.yaml", "-config.expand-env=true", "-target=all"]

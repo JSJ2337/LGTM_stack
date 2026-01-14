@@ -62,3 +62,47 @@ variable "alloy_config" {
     mimir_tenant = string
   })
 }
+
+# -----------------------------------------------------------------------------
+# Image Versions (latest 사용 금지)
+# -----------------------------------------------------------------------------
+
+variable "image_versions" {
+  description = "Image versions for each service"
+  type = object({
+    mimir     = string
+    loki      = string
+    tempo     = string
+    pyroscope = string
+    grafana   = string
+    alloy     = string
+  })
+
+  default = {
+    mimir     = "2.16.0"
+    loki      = "3.5.1"
+    tempo     = "2.9.0"
+    pyroscope = "1.13.5"
+    grafana   = "12.1.0"
+    alloy     = "1.9.2"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Tenant Configuration
+# -----------------------------------------------------------------------------
+
+variable "tenants" {
+  description = "Tenant IDs for multi-tenancy"
+  type = object({
+    default    = string
+    cloudflare = string
+    rds        = string
+  })
+
+  default = {
+    default    = "jsj-lgtm"
+    cloudflare = "jsj-cloudflare"
+    rds        = "jsj-rds"
+  }
+}

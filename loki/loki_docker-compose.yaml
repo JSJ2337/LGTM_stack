@@ -1,26 +1,39 @@
+# ============================================================================
+# Loki Docker Compose (로그 저장소)
+# ============================================================================
+# 실행: docker-compose --env-file ../.env -f loki_docker-compose.yaml up -d
+# ============================================================================
+
 services:
-  ftt-loki:
-    container_name: ftt-loki
-    image: grafana/loki:3.5.1
-    user: "0"                       # 컨테이너 프로세스를 root 로 실행
+  # ─────────────────────────────────────────────────────────────────────────
+  # Loki Monolithic
+  # ─────────────────────────────────────────────────────────────────────────
+  jsj-loki:
+    image: grafana/loki:${LOKI_VERSION}
+    container_name: ${CONTAINER_PREFIX}-loki
+    user: "0:0"
+    restart: unless-stopped
+
     command:
       - -config.file=/etc/loki/loki-config.yaml
       - -config.expand-env=true
-      - -log.level=warn             # 로깅 레벨 설정
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./data:/ftt-loki                    # TSDB 및 인덱스 저장소 (path_prefix와 일치)
-      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml:ro  # 설정 파일
-    environment:
-      AWS_REGION: ap-northeast-2           # S3 리전
-      LOKI_S3_BUCKET: sys-lgtm-s3     # S3 버킷명
-      # AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY은 외부에서 주입
-    restart: unless-stopped
-    networks:
-      - mimir-net
+      - -log.level=warn
 
-    # 헬스체크 설정
+    ports:
+      - "${LOKI_HTTP_PORT}:3100"
+
+    volumes:
+      - ./data:/jsj-loki
+      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+
+    environment:
+      AWS_REGION: ${AWS_REGION}
+      LOKI_S3_BUCKET: ${S3_BUCKET}
+      TZ: ${TZ}
+
+    networks:
+      - ${DOCKER_NETWORK}
+
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
       interval: 30s
@@ -28,13 +41,22 @@ services:
       retries: 3
       start_period: 40s
 
-    # 로깅 설정
     logging:
       driver: "json-file"
       options:
-        max-size: "100m"
-        max-file: "5"
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"
+
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
+    labels:
+      - "app=loki"
+      - "component=log-storage"
+      - "environment=production"
+      - "version=${LOKI_VERSION}"
 
 networks:
-  mimir-net:
+  jsj-lgtm-net:
+    name: ${DOCKER_NETWORK}
     external: true

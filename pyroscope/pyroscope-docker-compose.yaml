@@ -1,23 +1,60 @@
+# ============================================================================
+# Pyroscope Docker Compose (프로파일링)
+# ============================================================================
+# 실행: docker-compose --env-file ../.env -f pyroscope-docker-compose.yaml up -d
+# ============================================================================
+
 services:
-  pyroscope:
-    user: "0"
-    image: grafana/pyroscope:latest
-    container_name: ftt-pyroscope
+  # ─────────────────────────────────────────────────────────────────────────
+  # Pyroscope Monolithic
+  # ─────────────────────────────────────────────────────────────────────────
+  jsj-pyroscope:
+    image: grafana/pyroscope:${PYROSCOPE_VERSION}
+    container_name: ${CONTAINER_PREFIX}-pyroscope
+    user: "0:0"
     restart: unless-stopped
+
     command:
       - --config.file=/etc/pyroscope/config.yaml
-      - --target=all                 # 단일 바이너리
+      - --target=all
+
+    ports:
+      - "${PYROSCOPE_HTTP_PORT}:4040"
+      - "${PYROSCOPE_GRPC_PORT}:4041"
+
     volumes:
       - ./config/pyroscope-config.yaml:/etc/pyroscope/config.yaml:ro
-      - ./data:/data                 # 로컬 캐시·WAL
-    ports:
-      - "4040:4040"                  # HTTP UI / API
-      - "4041:4041"                  # gRPC
+      - ./data:/data
+
     environment:
-      - TZ=Asia/Seoul                # 로그 타임존만 맞춤
+      TZ: ${TZ}
+
     networks:
-      - mimir-net                    # 기존 관측계 네트워크
+      - ${DOCKER_NETWORK}
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4040/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"
+
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
+    labels:
+      - "app=pyroscope"
+      - "component=profiling"
+      - "environment=production"
+      - "version=${PYROSCOPE_VERSION}"
 
 networks:
-  mimir-net:
+  jsj-lgtm-net:
+    name: ${DOCKER_NETWORK}
     external: true

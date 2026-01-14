@@ -161,5 +161,11 @@ module "ecs" {
   # Alloy Configuration
   alloy_config = var.alloy_config
 
+  # Image Versions (latest 사용 금지, common.tfvars에서 관리)
+  image_versions = var.image_versions
+
+  # Tenant Configuration
+  tenants = var.tenants
+
   tags = var.tags
 }

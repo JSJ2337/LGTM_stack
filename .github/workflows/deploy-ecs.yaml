@@ -28,9 +28,9 @@ on:
           - grafana
           - alloy
       image_tag:
-        description: '이미지 태그'
+        description: '이미지 태그 (common.tfvars의 image_versions 참조)'
         required: false
-        default: 'latest'
+        default: ''
         type: string
       force_deploy:
         description: '변경 없어도 강제 배포'
@@ -78,6 +78,24 @@ jobs:
         if: steps.check.outputs.should_build == 'true'
         uses: actions/checkout@v4
 
+      - name: Get image version from common.tfvars
+        if: steps.check.outputs.should_build == 'true'
+        id: version
+        run: |
+          TFVARS="ecs-migration/terraform/environments/prod/common.tfvars"
+          COMPONENT="${{ matrix.component }}"
+
+          # common.tfvars에서 해당 컴포넌트의 버전 추출
+          VERSION=$(grep -A 10 'image_versions' $TFVARS | grep "$COMPONENT" | grep -oP '"\K[^"]+')
+
+          # 수동 입력값이 있으면 사용, 없으면 common.tfvars 값 사용
+          if [[ -n "${{ github.event.inputs.image_tag }}" ]]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          fi
+          echo "Image tag for $COMPONENT: $VERSION"
+
       - name: Configure AWS credentials
         if: steps.check.outputs.should_build == 'true'
         uses: aws-actions/configure-aws-credentials@v4
@@ -101,7 +119,7 @@ jobs:
         with:
           images: ${{ steps.login-ecr.outputs.registry }}/lgtm-${{ matrix.component }}
           tags: |
-            type=raw,value=${{ github.event.inputs.image_tag || 'latest' }}
+            type=raw,value=${{ steps.version.outputs.tag }}
             type=sha,prefix=
             type=raw,value={{date 'YYYYMMDD-HHmmss'}}
 
@@ -116,6 +134,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
+            VERSION=${{ steps.version.outputs.tag }}
             BUILD_DATE=${{ github.event.repository.updated_at }}
             GIT_COMMIT=${{ github.sha }}
 
@@ -124,13 +143,13 @@ jobs:
         continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/lgtm-${{ matrix.component }}:${{ github.event.inputs.image_tag || 'latest' }}
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/lgtm-${{ matrix.component }}:${{ steps.version.outputs.tag }}
           format: 'table'
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
 
   # =============================================================================
-  # Deploy to ECS
+  # Deploy to ECS (승인 후 실행)
   # =============================================================================
   deploy:
     name: Deploy ${{ matrix.component }}
@@ -140,6 +159,12 @@ jobs:
       fail-fast: false
       matrix:
         component: [mimir, loki, tempo, pyroscope, grafana, alloy]
+
+    # GitHub Environment 설정 (승인 필요)
+    # Repository Settings → Environments → 'prod' 환경 사용
+    environment:
+      name: prod
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     permissions:
       id-token: write
@@ -167,7 +192,7 @@ jobs:
       - name: Deploy to ECS
         if: steps.check.outputs.should_deploy == 'true'
         run: |
-          echo "Deploying ${{ matrix.component }} to ECS..."
+          echo "✅ 승인됨 - ${{ matrix.component }} 배포 시작..."
 
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \

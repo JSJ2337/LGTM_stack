@@ -60,7 +60,7 @@ resource "aws_ecs_task_definition" "mimir" {
   container_definitions = jsonencode([
     {
       name      = "mimir"
-      image     = "${var.ecr_repository_urls["lgtm-mimir"]}:latest"
+      image     = "${var.ecr_repository_urls["lgtm-mimir"]}:${var.image_versions.mimir}"
       essential = true
 
       portMappings = [
@@ -114,7 +114,7 @@ resource "aws_ecs_task_definition" "loki" {
   container_definitions = jsonencode([
     {
       name      = "loki"
-      image     = "${var.ecr_repository_urls["lgtm-loki"]}:latest"
+      image     = "${var.ecr_repository_urls["lgtm-loki"]}:${var.image_versions.loki}"
       essential = true
 
       portMappings = [
@@ -167,7 +167,7 @@ resource "aws_ecs_task_definition" "tempo" {
   container_definitions = jsonencode([
     {
       name      = "tempo"
-      image     = "${var.ecr_repository_urls["lgtm-tempo"]}:latest"
+      image     = "${var.ecr_repository_urls["lgtm-tempo"]}:${var.image_versions.tempo}"
       essential = true
 
       portMappings = [
@@ -220,7 +220,7 @@ resource "aws_ecs_task_definition" "pyroscope" {
   container_definitions = jsonencode([
     {
       name      = "pyroscope"
-      image     = "${var.ecr_repository_urls["lgtm-pyroscope"]}:latest"
+      image     = "${var.ecr_repository_urls["lgtm-pyroscope"]}:${var.image_versions.pyroscope}"
       essential = true
 
       portMappings = [
@@ -273,7 +273,7 @@ resource "aws_ecs_task_definition" "grafana" {
   container_definitions = jsonencode([
     {
       name      = "grafana"
-      image     = "${var.ecr_repository_urls["lgtm-grafana"]}:latest"
+      image     = "${var.ecr_repository_urls["lgtm-grafana"]}:${var.image_versions.grafana}"
       essential = true
 
       portMappings = [
@@ -335,7 +335,7 @@ resource "aws_ecs_task_definition" "alloy" {
   container_definitions = jsonencode([
     {
       name      = "alloy"
-      image     = "${var.ecr_repository_urls["lgtm-alloy"]}:latest"
+      image     = "${var.ecr_repository_urls["lgtm-alloy"]}:${var.image_versions.alloy}"
       essential = true
 
       portMappings = [

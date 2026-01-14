@@ -1,5 +1,6 @@
 # Terraform Component Reusable Workflow
 # 개별 컴포넌트에 대한 Terraform 실행
+# Plan → 승인 → Apply 단계로 분리
 
 name: Terraform Component
 
@@ -15,23 +16,29 @@ on:
         required: true
         type: string
         default: 'plan'
+    outputs:
+      plan_exitcode:
+        description: 'Terraform plan exit code'
+        value: ${{ jobs.plan.outputs.exitcode }}
 
 env:
   AWS_REGION: ap-northeast-2
   TF_VERSION: '1.13.5'
 
 jobs:
-  terraform:
-    name: "${{ inputs.component }} - ${{ inputs.action }}"
+  # =============================================================================
+  # Plan Job - 항상 실행
+  # =============================================================================
+  plan:
+    name: "Plan - ${{ inputs.component }}"
     runs-on: ubuntu-latest
-
-    # permissions는 caller workflow에서 상속됨 (secrets: inherit 사용)
 
     env:
       TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
 
     outputs:
-      plan_exitcode: ${{ steps.plan.outputs.exitcode }}
+      exitcode: ${{ steps.plan.outputs.exitcode }}
+      has_changes: ${{ steps.plan.outputs.has_changes }}
 
     steps:
       - name: Checkout
@@ -51,7 +58,6 @@ jobs:
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          # common.tfvars에서 backend 설정 추출
           TFVARS="../common.tfvars"
           STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
           STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
@@ -67,12 +73,9 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform validate
 
-      # =============================================================================
-      # Plan
-      # =============================================================================
       - name: Terraform Plan
         id: plan
-        if: inputs.action == 'plan' || inputs.action == 'apply'
+        if: inputs.action != 'destroy'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           terraform plan \
@@ -82,21 +85,23 @@ jobs:
             -out=tfplan \
             2>&1 | tee plan_output.txt
 
-          # exitcode 캡처 (pipe 때문에 PIPESTATUS 사용)
           EXITCODE=${PIPESTATUS[0]}
           echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
 
-          # exitcode 설명:
-          # 0 = 변경 없음
-          # 1 = 에러
-          # 2 = 변경 있음
+          # exitcode: 0=변경없음, 1=에러, 2=변경있음
+          if [ $EXITCODE -eq 2 ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
           if [ $EXITCODE -eq 1 ]; then
             exit 1
           fi
         continue-on-error: false
 
       - name: Upload Plan Artifact
-        if: inputs.action == 'plan' || inputs.action == 'apply'
+        if: inputs.action != 'destroy'
         uses: actions/upload-artifact@v4
         with:
           name: tfplan-${{ inputs.component }}
@@ -106,7 +111,7 @@ jobs:
           retention-days: 7
 
       - name: Comment Plan on PR
-        if: github.event_name == 'pull_request' && (inputs.action == 'plan' || inputs.action == 'apply')
+        if: github.event_name == 'pull_request' && inputs.action != 'destroy'
         uses: actions/github-script@v7
         with:
           script: |
@@ -134,40 +139,142 @@ jobs:
               body: output
             });
 
-      # =============================================================================
-      # Apply
-      # =============================================================================
-      - name: Terraform Apply
-        if: inputs.action == 'apply'
+      - name: Plan Summary
+        if: always()
+        run: |
+          echo "## ${{ inputs.component }} - Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Exit Code:** ${{ steps.plan.outputs.exitcode }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Has Changes:** ${{ steps.plan.outputs.has_changes }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 0: No changes" >> $GITHUB_STEP_SUMMARY
+          echo "- 2: Changes detected" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Apply Job - 승인 후 실행 (Environment Protection Rules 사용)
+  # =============================================================================
+  apply:
+    name: "Apply - ${{ inputs.component }}"
+    runs-on: ubuntu-latest
+    needs: plan
+    if: |
+      inputs.action == 'apply' &&
+      needs.plan.outputs.has_changes == 'true'
+
+    # GitHub Environment 설정 (승인 필요)
+    # Repository Settings → Environments → 'prod' 환경 사용
+    environment:
+      name: prod
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    env:
+      TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          echo "Applying ${{ inputs.component }}..."
+          TFVARS="../common.tfvars"
+          STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
+          STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
+          AWS_REGION=$(grep '^aws_region' $TFVARS | cut -d'"' -f2)
+
+          terraform init -upgrade \
+            -backend-config="bucket=${STATE_BUCKET}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ inputs.component }}
+          path: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "✅ 승인됨 - ${{ inputs.component }} Apply 시작..."
           terraform apply -auto-approve -compact-warnings tfplan
 
-      # =============================================================================
-      # Destroy
-      # =============================================================================
-      - name: Terraform Destroy
-        if: inputs.action == 'destroy'
+      - name: Apply Summary
+        if: always()
+        run: |
+          echo "## ${{ inputs.component }} - Apply" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Apply 완료" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Destroy Job - 승인 후 실행
+  # =============================================================================
+  destroy:
+    name: "Destroy - ${{ inputs.component }}"
+    runs-on: ubuntu-latest
+    if: inputs.action == 'destroy'
+
+    # Destroy도 prod 환경에서 승인 필요
+    environment:
+      name: prod
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    env:
+      TF_WORKING_DIR: ecs-migration/terraform/environments/prod/${{ inputs.component }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          echo "⚠️ Destroying ${{ inputs.component }}..."
+          TFVARS="../common.tfvars"
+          STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
+          STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
+          AWS_REGION=$(grep '^aws_region' $TFVARS | cut -d'"' -f2)
+
+          terraform init -upgrade \
+            -backend-config="bucket=${STATE_BUCKET}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "⚠️ 승인됨 - ${{ inputs.component }} Destroy 시작..."
           terraform destroy \
             -var-file="../common.tfvars" \
             -compact-warnings \
             -auto-approve
 
-      # =============================================================================
-      # Summary
-      # =============================================================================
-      - name: Job Summary
+      - name: Destroy Summary
         if: always()
         run: |
-          echo "## ${{ inputs.component }} - ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "## ${{ inputs.component }} - Destroy" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ inputs.action }}" == "plan" ] || [ "${{ inputs.action }}" == "apply" ]; then
-            echo "**Plan Exit Code:** ${{ steps.plan.outputs.exitcode }}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- 0: No changes" >> $GITHUB_STEP_SUMMARY
-            echo "- 2: Changes detected" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "⚠️ Destroy 완료" >> $GITHUB_STEP_SUMMARY

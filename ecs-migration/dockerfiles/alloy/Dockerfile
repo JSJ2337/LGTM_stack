@@ -1,28 +1,24 @@
 # Alloy Collector ECS Fargate Dockerfile
-# Version: 1.5.1 (EC2 docker-compose 설정 기반)
+# 빌드: docker build --build-arg VERSION=1.9.2 -t lgtm-alloy .
 
-FROM grafana/alloy:v1.5.1
+ARG VERSION=1.9.2
+FROM grafana/alloy:v${VERSION}
 
 # 메타데이터
 LABEL maintainer="jsj"
 LABEL app="lgtm-alloy"
-LABEL version="1.5.1"
 LABEL environment="production"
 
 # 설정 파일 복사 (Distroless 이미지는 shell 없음, COPY만 가능)
 COPY config.d/ /etc/alloy/config.d/
 
-# 환경변수 기본값
-ENV LOKI_URL=http://loki.lgtm.local:3100/loki/api/v1/push
-ENV LOKI_TENANT=ftt-cloudflare
-ENV MIMIR_URL=http://mimir.lgtm.local:8080/api/v1/push
-ENV MIMIR_TENANT=ftt-lgtm-rds
+# 환경변수는 런타임에 주입 (하드코딩 금지)
+# LOKI_URL, MIMIR_URL, LOKI_TENANT, MIMIR_TENANT 등은 ECS Task Definition에서 설정
 
 # 포트 노출
 EXPOSE 12345 9080
 
-# 헬스체크 비활성화 (Distroless에서는 wget/curl 없음, ECS Task Definition에서 설정)
-# HEALTHCHECK 제거 - ALB 헬스체크 사용
+# 헬스체크 비활성화 (Distroless에서는 wget/curl 없음, ALB 헬스체크 사용)
 
 # Alloy 실행 (run 서브커맨드 사용)
 CMD ["run", \

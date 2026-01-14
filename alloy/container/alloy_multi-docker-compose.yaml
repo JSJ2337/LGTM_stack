@@ -1,58 +1,114 @@
-networks:
-  mimir-net:
-    external: true
+# ============================================================================
+# Alloy Docker Compose (데이터 수집기)
+# ============================================================================
+# 실행: docker-compose --env-file ../../.env -f alloy_multi-docker-compose.yaml up -d
+# ============================================================================
 
 services:
-  ftt-alloy:
-    image: grafana/alloy:latest
-    container_name: ftt-alloy
+  # ─────────────────────────────────────────────────────────────────────────
+  # Alloy Collector
+  # ─────────────────────────────────────────────────────────────────────────
+  jsj-alloy:
+    image: grafana/alloy:${ALLOY_VERSION}
+    container_name: ${CONTAINER_PREFIX}-alloy
     user: "0:0"
+    restart: unless-stopped
+
     command:
       - run
       - --stability.level=experimental
       - --server.http.listen-addr=0.0.0.0:12345
       - --storage.path=/var/lib/alloy
       - /etc/alloy/config.d/
+
     ports:
-      - "12345:12345"
-      - "9080:9080"
+      - "${ALLOY_HTTP_PORT}:12345"
+      - "${ALLOY_METRICS_PORT}:9080"
+
     volumes:
       - ./config.d:/etc/alloy/config.d:ro
       - ./alloy-data:/var/lib/alloy
       - ./remote-config:/data/alloy-remote-config
+
     environment:
-      CF_API_TOKEN: ${CF_API_TOKEN}   # .env에서 주입
-      CF_ZONE_ID_1: ${CF_ZONE_ID_1}   # .env에서 주입
-      # CF_ZONE_ID_2: "..."
-      # CF_ZONE_ID_3: "..."
-      LOKI_URL: "http://ftt-loki:3100/loki/api/v1/push"
-      LOKI_TENANT: "ftt-cloudflare"     # 단일테넌트면 비워도 됨
-      MIMIR_URL: "http://ftt-mimir:8080/api/v1/push"
-      MIMIR_TENANT: "ftt-lgtm-rds"    # 단일테넌트면 비워도 됨
-      CF_MIMIR_TENANT: "ftt-cloudflare"    # 단일테넌트면 비워도 됨
-    restart: unless-stopped
+      TZ: ${TZ}
+      # Cloudflare 설정 (필요시 .env에서 설정)
+      CF_API_TOKEN: ${CF_API_TOKEN:-}
+      CF_ZONE_ID_1: ${CF_ZONE_ID_1:-}
+      # LGTM 엔드포인트
+      LOKI_URL: http://${CONTAINER_PREFIX}-loki:3100/loki/api/v1/push
+      LOKI_TENANT: ${CLOUDFLARE_TENANT}
+      MIMIR_URL: http://${CONTAINER_PREFIX}-mimir:8080/api/v1/push
+      MIMIR_TENANT: ${RDS_TENANT}
+      CF_MIMIR_TENANT: ${CLOUDFLARE_TENANT}
+
     networks:
-      - mimir-net
+      - ${DOCKER_NETWORK}
+
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:12345/-/healthy >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
+
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"
 
-  cloudflare-exporter:
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
+    labels:
+      - "app=alloy"
+      - "component=collector"
+      - "environment=production"
+      - "version=${ALLOY_VERSION}"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Cloudflare Exporter (Optional)
+  # ─────────────────────────────────────────────────────────────────────────
+  jsj-cloudflare-exporter:
     image: ghcr.io/lablabs/cloudflare_exporter:latest
-    container_name: ftt-cloudflare
+    container_name: ${CONTAINER_PREFIX}-cloudflare-exporter
+    user: "0:0"
+    restart: unless-stopped
+
     environment:
-      CF_API_TOKEN: ${CF_API_TOKEN}   # .env에서 주입
+      CF_API_TOKEN: ${CF_API_TOKEN:-}
       LISTEN: ":2112"
-      # CF_ZONES: "zoneid1,zoneid2"  # 특정 존만 수집 시(옵션)
+      TZ: ${TZ}
+
     ports:
       - "2112:2112"
-    restart: unless-stopped
+
     networks:
-      - mimir-net
+      - ${DOCKER_NETWORK}
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:2112/metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"
+
+    stop_signal: SIGTERM
+    stop_grace_period: 15s
+
+    labels:
+      - "app=cloudflare-exporter"
+      - "component=exporter"
+      - "environment=production"
+
+networks:
+  jsj-lgtm-net:
+    name: ${DOCKER_NETWORK}
+    external: true

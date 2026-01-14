@@ -1,21 +1,60 @@
+# ============================================================================
+# Tempo Docker Compose (트레이스 저장소)
+# ============================================================================
+# 실행: docker-compose --env-file ../.env -f tempo-docker-compose.yaml up -d
+# ============================================================================
+
 services:
-  tempo:
-    image: grafana/tempo:latest
-    user: root
-    container_name: ftt-tempo
+  # ─────────────────────────────────────────────────────────────────────────
+  # Tempo Monolithic
+  # ─────────────────────────────────────────────────────────────────────────
+  jsj-tempo:
+    image: grafana/tempo:${TEMPO_VERSION}
+    container_name: ${CONTAINER_PREFIX}-tempo
+    user: "0:0"
     restart: unless-stopped
+
+    command:
+      - "-config.file=/etc/tempo/tempo.yaml"
+
     ports:
-      - 3200:3200        # HTTP API
-      - 4317:4317        # OTLP gRPC
-      - 4318:4318        # OTLP HTTP
+      - "${TEMPO_HTTP_PORT}:3200"
+      - "${TEMPO_OTLP_GRPC_PORT}:4317"
+      - "${TEMPO_OTLP_HTTP_PORT}:4318"
+
     volumes:
       - ./config/tempo-config.yaml:/etc/tempo/tempo.yaml:ro
       - ./tempo-data:/var/tempo
-    command:
-      - "-config.file=/etc/tempo/tempo.yaml"
+
+    environment:
+      TZ: ${TZ}
+
     networks:
-      - mimir-net        # ← 여기 조인
+      - ${DOCKER_NETWORK}
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"
+
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
+    labels:
+      - "app=tempo"
+      - "component=trace-storage"
+      - "environment=production"
+      - "version=${TEMPO_VERSION}"
 
 networks:
-  mimir-net:
-    external: true       # 이미 존재하는 네트워크 사용
+  jsj-lgtm-net:
+    name: ${DOCKER_NETWORK}
+    external: true

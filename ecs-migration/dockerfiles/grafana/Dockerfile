@@ -1,29 +1,19 @@
 # Grafana ECS Fargate Dockerfile
-# Version: 12.1.0 (EC2 docker-compose 설정 기반)
+# 빌드: docker build --build-arg VERSION=12.1.0 -t lgtm-grafana .
 
-FROM grafana/grafana:12.1.0
+ARG VERSION=12.1.0
+FROM grafana/grafana:${VERSION}
 
 # 메타데이터
 LABEL maintainer="jsj"
 LABEL app="lgtm-grafana"
-LABEL version="12.1.0"
 LABEL environment="production"
 
 # 프로비저닝 설정 파일 복사
 COPY config/provisioning/ /etc/grafana/provisioning/
 
-# 환경변수 기본값
-ENV GF_SECURITY_ADMIN_USER=admin
-ENV GF_USERS_ALLOW_SIGN_UP=false
-ENV GF_LOG_LEVEL=info
-ENV GF_DATE_FORMATS_DEFAULT_TIMEZONE=Asia/Seoul
-ENV TZ=Asia/Seoul
-ENV GF_INSTALL_PLUGINS=grafana-piechart-panel
-ENV GF_FEATURE_TOGGLES_ENABLE=alertingCentralAlertHistory
-ENV GF_UNIFIED_ALERTING_STATE_HISTORY_ENABLED=true
-ENV GF_UNIFIED_ALERTING_STATE_HISTORY_BACKEND=loki
-ENV GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_REMOTE_URL=http://loki.lgtm.local:3100
-ENV GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_TENANT_ID=ftt-lgtm
+# 환경변수는 런타임에 주입 (하드코딩 금지)
+# GF_SECURITY_ADMIN_PASSWORD, GF_SERVER_ROOT_URL 등은 ECS Task Definition에서 설정
 
 # 포트 노출
 EXPOSE 3000
