@@ -86,13 +86,13 @@ jobs:
           COMPONENT="${{ matrix.component }}"
 
           # common.tfvars에서 해당 컴포넌트의 버전 추출
-          VERSION=$(grep -A 10 'image_versions' $TFVARS | grep "$COMPONENT" | grep -oP '"\K[^"]+')
+          VERSION=$(grep -A 10 'image_versions' "$TFVARS" | grep "$COMPONENT" | sed 's/.*= *"\([^"]*\)".*/\1/')
 
           # 수동 입력값이 있으면 사용, 없으면 common.tfvars 값 사용
           if [[ -n "${{ github.event.inputs.image_tag }}" ]]; then
-            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
           fi
           echo "Image tag for $COMPONENT: $VERSION"
 
