@@ -269,7 +269,7 @@ resource "aws_ecs_task_definition" "grafana" {
       secrets = [
         {
           name      = "GF_SECURITY_ADMIN_PASSWORD"
-          valueFrom = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:lgtm/grafana-admin-password"
+          valueFrom = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:lgtm/grafana-admin-password:password::"
         }
       ]
 
