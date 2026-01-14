@@ -177,7 +177,8 @@ resource "aws_ecs_task_definition" "tempo" {
       ]
 
       environment = [
-        { name = "AWS_REGION", value = var.aws_region }
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "TEMPO_S3_BUCKET", value = var.s3_bucket_name }
       ]
 
       logConfiguration = {
@@ -230,6 +231,7 @@ resource "aws_ecs_task_definition" "pyroscope" {
 
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
+        { name = "PYROSCOPE_S3_BUCKET", value = var.s3_bucket_name },
         { name = "TZ", value = "Asia/Seoul" }
       ]
 
