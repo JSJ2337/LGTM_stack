@@ -65,7 +65,7 @@ resource "aws_lb_target_group" "mimir" {
     unhealthy_threshold = var.health_check_config.unhealthy_threshold
     timeout             = var.health_check_config.timeout
     interval            = var.health_check_config.interval
-    path                = "/-/ready"
+    path                = "/ready"
     matcher             = "200"
   }
 
