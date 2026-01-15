@@ -127,7 +127,7 @@ resource "aws_ecs_task_definition" "loki" {
         { name = "LOKI_S3_BUCKET", value = var.s3_bucket_name },
         { name = "LOKI_HOST", value = "loki.${var.cloudmap_namespace_name}" },
         { name = "MEMBERLIST_PORT", value = "7946" },
-        { name = "LOKI_STORAGE_PREFIX", value = "loki" },
+        { name = "LOKI_STORAGE_PREFIX", value = var.storage_prefixes.loki },
         { name = "MEMCACHED_ENDPOINT", value = var.memcached_endpoint }
       ]
 
@@ -177,7 +177,7 @@ resource "aws_ecs_task_definition" "tempo" {
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
         { name = "TEMPO_S3_BUCKET", value = var.s3_bucket_name },
-        { name = "TEMPO_STORAGE_PREFIX", value = "tempo" },
+        { name = "TEMPO_STORAGE_PREFIX", value = var.storage_prefixes.tempo },
         { name = "MIMIR_REMOTE_WRITE_URL", value = "http://mimir.${var.cloudmap_namespace_name}:8080/api/v1/push" }
       ]
 
@@ -226,6 +226,7 @@ resource "aws_ecs_task_definition" "pyroscope" {
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
         { name = "PYROSCOPE_S3_BUCKET", value = var.s3_bucket_name },
+        { name = "PYROSCOPE_STORAGE_PREFIX", value = var.storage_prefixes.pyroscope },
         { name = "TZ", value = "Asia/Seoul" }
       ]
 

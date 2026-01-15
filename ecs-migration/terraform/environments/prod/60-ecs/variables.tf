@@ -106,3 +106,22 @@ variable "tenants" {
     rds        = "jsj-rds"
   }
 }
+
+# -----------------------------------------------------------------------------
+# S3 Storage Prefix 설정
+# -----------------------------------------------------------------------------
+
+variable "storage_prefixes" {
+  description = "S3 storage prefixes for each service"
+  type = object({
+    loki      = string
+    tempo     = string
+    pyroscope = string
+  })
+
+  default = {
+    loki      = "loki"
+    tempo     = "tempo"
+    pyroscope = "pyroscope"
+  }
+}

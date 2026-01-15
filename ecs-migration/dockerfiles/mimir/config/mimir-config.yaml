@@ -127,3 +127,4 @@ alertmanager_storage:
 ##############################################################################
 runtime_config:
   period: 10s
+  file: s3://${MIMIR_S3_BUCKET}/mimir/runtime-config.yaml

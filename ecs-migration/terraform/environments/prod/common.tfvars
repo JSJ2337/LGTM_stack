@@ -304,3 +304,14 @@ memcached_config = {
   max_item_size      = 1048576  # 1MB
   maintenance_window = "sun:05:00-sun:06:00"
 }
+
+# -----------------------------------------------------------------------------
+# S3 Storage Prefix 설정
+# 각 서비스별 S3 저장 경로 prefix
+# -----------------------------------------------------------------------------
+
+storage_prefixes = {
+  loki      = "loki"
+  tempo     = "tempo"
+  pyroscope = "pyroscope"
+}

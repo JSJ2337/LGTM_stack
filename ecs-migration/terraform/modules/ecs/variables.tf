@@ -387,3 +387,30 @@ variable "memcached_endpoint" {
     error_message = "Memcached endpoint must be in address:port format (e.g., cache.example.com:11211)."
   }
 }
+
+# -----------------------------------------------------------------------------
+# S3 Storage Prefix Configuration
+# -----------------------------------------------------------------------------
+
+variable "storage_prefixes" {
+  description = "S3 storage prefixes for each service"
+  type = object({
+    loki      = string
+    tempo     = string
+    pyroscope = string
+  })
+
+  default = {
+    loki      = "loki"
+    tempo     = "tempo"
+    pyroscope = "pyroscope"
+  }
+
+  validation {
+    condition = alltrue([
+      for prefix in values(var.storage_prefixes) :
+      can(regex("^[a-z0-9-]+$", prefix))
+    ])
+    error_message = "Storage prefixes must contain only lowercase letters, numbers, and hyphens."
+  }
+}

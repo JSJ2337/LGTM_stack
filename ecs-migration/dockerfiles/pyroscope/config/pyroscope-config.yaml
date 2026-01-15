@@ -1,5 +1,7 @@
 target: all
 
+multitenancy_enabled: true
+
 server:
   http_listen_port: 4040
   grpc_listen_port: 4041
@@ -8,6 +10,7 @@ server:
 
 storage:
   backend: s3
+  prefix: ${PYROSCOPE_STORAGE_PREFIX}/
   s3:
     bucket_name: ${PYROSCOPE_S3_BUCKET}
     endpoint: s3.${AWS_REGION}.amazonaws.com

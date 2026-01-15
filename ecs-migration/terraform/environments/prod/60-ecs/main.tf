@@ -180,5 +180,8 @@ module "ecs" {
   # ElastiCache (Memcached) Configuration
   memcached_endpoint = data.terraform_remote_state.elasticache.outputs.primary_endpoint
 
+  # S3 Storage Prefix Configuration
+  storage_prefixes = var.storage_prefixes
+
   tags = var.tags
 }
