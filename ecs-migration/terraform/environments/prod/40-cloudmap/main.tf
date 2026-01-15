@@ -47,6 +47,45 @@ data "terraform_remote_state" "vpc" {
 }
 
 # -----------------------------------------------------------------------------
+# Import: 기존 CloudMap 리소스 (state 손실 복구)
+# -----------------------------------------------------------------------------
+
+import {
+  to = module.cloudmap.aws_service_discovery_private_dns_namespace.main
+  id = "ns-rwp3nxccl4n4hg34"
+}
+
+import {
+  to = module.cloudmap.aws_service_discovery_service.services["mimir"]
+  id = "srv-obpplftauntdb6ih"
+}
+
+import {
+  to = module.cloudmap.aws_service_discovery_service.services["loki"]
+  id = "srv-3ikch4svmj4i6qa4"
+}
+
+import {
+  to = module.cloudmap.aws_service_discovery_service.services["tempo"]
+  id = "srv-ddsxjr2wa4igmzrv"
+}
+
+import {
+  to = module.cloudmap.aws_service_discovery_service.services["pyroscope"]
+  id = "srv-ligheqm4ghbngw2s"
+}
+
+import {
+  to = module.cloudmap.aws_service_discovery_service.services["grafana"]
+  id = "srv-6s2ocrn7r3xv6bwu"
+}
+
+import {
+  to = module.cloudmap.aws_service_discovery_service.services["alloy"]
+  id = "srv-psyee5im2w6siqdj"
+}
+
+# -----------------------------------------------------------------------------
 # CloudMap Module
 # -----------------------------------------------------------------------------
 
