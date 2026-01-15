@@ -372,3 +372,18 @@ variable "tenants" {
     rds        = "jsj-rds"
   }
 }
+
+# -----------------------------------------------------------------------------
+# ElastiCache (Memcached) Configuration
+# -----------------------------------------------------------------------------
+
+variable "memcached_endpoint" {
+  description = "Memcached endpoint (address:port format)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.memcached_endpoint == "" || can(regex("^[a-z0-9.-]+:[0-9]+$", var.memcached_endpoint))
+    error_message = "Memcached endpoint must be in address:port format (e.g., cache.example.com:11211)."
+  }
+}

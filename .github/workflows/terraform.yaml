@@ -50,6 +50,7 @@ on:
           - 15-s3
           - 20-iam
           - 30-security-groups
+          - 35-elasticache
           - 40-cloudmap
           - 50-alb
           - 60-ecs
@@ -215,16 +216,34 @@ jobs:
       action: ${{ github.event.inputs.action || 'plan' }}
     secrets: inherit
 
+  # Stage 3.5: ElastiCache (Security Groups 이후)
+  stage3-elasticache:
+    name: "Stage3: ElastiCache"
+    needs: [approval, stage1-vpc, stage3-security-groups]
+    if: >-
+      always() &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
+      (needs.stage3-security-groups.result == 'success' || needs.stage3-security-groups.result == 'skipped') &&
+      github.event.inputs.action != 'destroy' &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '35-elasticache')
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 35-elasticache
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
+
   # Stage 4: ALB
   stage4-alb:
     name: "Stage4: ALB"
-    needs: [approval, stage1-vpc, stage3-security-groups, stage3-cloudmap]
+    needs: [approval, stage1-vpc, stage3-security-groups, stage3-cloudmap, stage3-elasticache]
     if: >-
       always() &&
       (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
       (needs.stage1-vpc.result == 'success' || needs.stage1-vpc.result == 'skipped') &&
       (needs.stage3-security-groups.result == 'success' || needs.stage3-security-groups.result == 'skipped') &&
       (needs.stage3-cloudmap.result == 'success' || needs.stage3-cloudmap.result == 'skipped') &&
+      (needs.stage3-elasticache.result == 'success' || needs.stage3-elasticache.result == 'skipped') &&
       github.event.inputs.action != 'destroy' &&
       (github.event.inputs.component == 'all' || github.event.inputs.component == '50-alb')
     uses: ./.github/workflows/terraform-component.yaml
@@ -244,6 +263,7 @@ jobs:
       - stage2-ecr
       - stage2-s3
       - stage3-security-groups
+      - stage3-elasticache
       - stage3-cloudmap
       - stage4-alb
     if: >-
@@ -255,6 +275,7 @@ jobs:
       (needs.stage2-ecr.result == 'success' || needs.stage2-ecr.result == 'skipped') &&
       (needs.stage2-s3.result == 'success' || needs.stage2-s3.result == 'skipped') &&
       (needs.stage3-security-groups.result == 'success' || needs.stage3-security-groups.result == 'skipped') &&
+      (needs.stage3-elasticache.result == 'success' || needs.stage3-elasticache.result == 'skipped') &&
       (needs.stage3-cloudmap.result == 'success' || needs.stage3-cloudmap.result == 'skipped') &&
       (needs.stage4-alb.result == 'success' || needs.stage4-alb.result == 'skipped') &&
       github.event.inputs.action != 'destroy' &&
@@ -300,15 +321,33 @@ jobs:
       action: destroy
     secrets: inherit
 
-  # Destroy Stage 3: Security Groups, CloudMap
-  destroy-stage3-security-groups:
-    name: "Destroy-Stage3: Security Groups"
+  # Destroy Stage 3.5: ElastiCache (ALB 삭제 후)
+  destroy-stage3-elasticache:
+    name: "Destroy-Stage3: ElastiCache"
     needs: [approval, destroy-stage5-ecs, destroy-stage4-alb]
     if: >-
       always() &&
       needs.approval.result == 'success' &&
       (needs.destroy-stage5-ecs.result == 'success' || needs.destroy-stage5-ecs.result == 'skipped') &&
       (needs.destroy-stage4-alb.result == 'success' || needs.destroy-stage4-alb.result == 'skipped') &&
+      github.event.inputs.action == 'destroy' &&
+      (github.event.inputs.component == 'all' || github.event.inputs.component == '35-elasticache')
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 35-elasticache
+      action: destroy
+    secrets: inherit
+
+  # Destroy Stage 3: Security Groups, CloudMap
+  destroy-stage3-security-groups:
+    name: "Destroy-Stage3: Security Groups"
+    needs: [approval, destroy-stage5-ecs, destroy-stage4-alb, destroy-stage3-elasticache]
+    if: >-
+      always() &&
+      needs.approval.result == 'success' &&
+      (needs.destroy-stage5-ecs.result == 'success' || needs.destroy-stage5-ecs.result == 'skipped') &&
+      (needs.destroy-stage4-alb.result == 'success' || needs.destroy-stage4-alb.result == 'skipped') &&
+      (needs.destroy-stage3-elasticache.result == 'success' || needs.destroy-stage3-elasticache.result == 'skipped') &&
       github.event.inputs.action == 'destroy' &&
       (github.event.inputs.component == 'all' || github.event.inputs.component == '30-security-groups')
     uses: ./.github/workflows/terraform-component.yaml
@@ -319,12 +358,13 @@ jobs:
 
   destroy-stage3-cloudmap:
     name: "Destroy-Stage3: CloudMap"
-    needs: [approval, destroy-stage5-ecs, destroy-stage4-alb]
+    needs: [approval, destroy-stage5-ecs, destroy-stage4-alb, destroy-stage3-elasticache]
     if: >-
       always() &&
       needs.approval.result == 'success' &&
       (needs.destroy-stage5-ecs.result == 'success' || needs.destroy-stage5-ecs.result == 'skipped') &&
       (needs.destroy-stage4-alb.result == 'success' || needs.destroy-stage4-alb.result == 'skipped') &&
+      (needs.destroy-stage3-elasticache.result == 'success' || needs.destroy-stage3-elasticache.result == 'skipped') &&
       github.event.inputs.action == 'destroy' &&
       (github.event.inputs.component == 'all' || github.event.inputs.component == '40-cloudmap')
     uses: ./.github/workflows/terraform-component.yaml
@@ -433,12 +473,14 @@ jobs:
       - stage2-ecr
       - stage2-s3
       - stage3-security-groups
+      - stage3-elasticache
       - stage3-cloudmap
       - stage4-alb
       - stage5-ecs
       # Destroy jobs
       - destroy-stage5-ecs
       - destroy-stage4-alb
+      - destroy-stage3-elasticache
       - destroy-stage3-security-groups
       - destroy-stage3-cloudmap
       - destroy-stage2-cloudwatch-logs
@@ -462,6 +504,7 @@ jobs:
             echo "|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
             echo "| 5 | ECS | ${{ needs.destroy-stage5-ecs.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 4 | ALB | ${{ needs.destroy-stage4-alb.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| 3 | ElastiCache | ${{ needs.destroy-stage3-elasticache.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 3 | Security Groups | ${{ needs.destroy-stage3-security-groups.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 3 | CloudMap | ${{ needs.destroy-stage3-cloudmap.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 2 | CloudWatch Logs | ${{ needs.destroy-stage2-cloudwatch-logs.result }} |" >> $GITHUB_STEP_SUMMARY
@@ -479,6 +522,7 @@ jobs:
             echo "| 2 | ECR | ${{ needs.stage2-ecr.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 2 | S3 | ${{ needs.stage2-s3.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 3 | Security Groups | ${{ needs.stage3-security-groups.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| 3 | ElastiCache | ${{ needs.stage3-elasticache.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 3 | CloudMap | ${{ needs.stage3-cloudmap.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 4 | ALB | ${{ needs.stage4-alb.result }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 5 | ECS | ${{ needs.stage5-ecs.result }} |" >> $GITHUB_STEP_SUMMARY

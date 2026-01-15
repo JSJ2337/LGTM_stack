@@ -1,39 +1,42 @@
-########################
-# Global / Server
-########################
-auth_enabled: true            # 멀티테넌트 활성
+###############################################################################
+# Loki Configuration - ECS Fargate 호환
+###############################################################################
+
+###############################################################################
+# 1. 서버 및 멀티테넌시 설정
+###############################################################################
+auth_enabled: true                        # 멀티테넌트 활성화
 
 server:
-  http_listen_port: 3100      # HTTP API 포트
+  http_listen_port: 3100                  # HTTP API 포트
 
-########################
-# Common (ring & dirs)
-########################
+###############################################################################
+# 2. Common 설정 (Ring & 디렉토리)
+###############################################################################
 common:
-  path_prefix: /ftt-loki
-  replication_factor: 1       # HA 미적용 환경에서는 1 유지
+  path_prefix: /loki
+  replication_factor: 1                   # 단일 노드 모드
   ring:
     kvstore:
-      store: inmemory         # 단일 인스턴스 모드
+      store: inmemory                     # 단일 인스턴스 모드
 
-########################
-# Ingester  (WAL + 청크 튜닝)
-########################
+###############################################################################
+# 3. Ingester 설정 (WAL + 청크 튜닝)
+###############################################################################
 ingester:
   wal:
-    enabled: true
+    enabled: true                         # WAL 활성화 (데이터 손실 방지)
     dir: /loki/wal
     checkpoint_duration: 5m
-    flush_on_shutdown: true
-  chunk_target_size: 1572864          # 1.5 MiB
-  chunk_encoding:    snappy
-  chunk_idle_period: 2h
-  max_chunk_age: 2h
+    flush_on_shutdown: true               # 종료 시 WAL 플러시
+  chunk_target_size: 1572864              # 1.5 MiB (Grafana Labs 권장값)
+  chunk_encoding: snappy                  # 압축 알고리즘
+  chunk_idle_period: 30m                  # 청크 유휴 기간
+  max_chunk_age: 2h                       # 최대 청크 수명
 
-
-########################
-# Schema (TSDB + S3)
-########################
+###############################################################################
+# 4. Schema 설정 (TSDB + S3)
+###############################################################################
 schema_config:
   configs:
     - from: 2024-01-01
@@ -44,110 +47,112 @@ schema_config:
         prefix: index_
         period: 24h
 
-########################
-# Storage (Thanos client)
-########################
+###############################################################################
+# 5. Storage 설정 (Thanos Client)
+###############################################################################
 storage_config:
   use_thanos_objstore: true
   object_store:
     s3:
-      endpoint: s3.ap-northeast-2.amazonaws.com
+      endpoint: s3.${AWS_REGION}.amazonaws.com
       bucket_name: ${LOKI_S3_BUCKET}
       region: ${AWS_REGION}
       bucket_lookup_type: path
-    storage_prefix: ftt-loki
+    storage_prefix: loki
   tsdb_shipper:
-    active_index_directory: /ftt-loki/index
-    cache_location: /ftt-loki/index_cache
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
     cache_ttl: 24h
 
-########################
-# Compactor & Limits
-########################
+###############################################################################
+# 6. Compactor 설정
+###############################################################################
 compactor:
-  working_directory: /ftt-loki/compactor
-  compaction_interval: 5m
-  retention_enabled: true
-  retention_delete_delay: 2h
+  working_directory: /loki/compactor
+  compaction_interval: 5m                 # 압축 간격
+  retention_enabled: true                 # 보존 정책 활성화
+  retention_delete_delay: 2h              # 삭제 지연
   retention_delete_worker_count: 150
   delete_request_store: s3
 
-########################
-# Table Manager (보존 정책)
-########################
+###############################################################################
+# 7. Table Manager (보존 정책)
+###############################################################################
 table_manager:
   retention_deletes_enabled: true
-  retention_period: 8760h     # 1년(365일) 보존
+  retention_period: 8760h                 # 1년(365일) 보존
 
+###############################################################################
+# 8. Limits 설정
+###############################################################################
 limits_config:
-  ingestion_rate_mb: 25
-  max_global_streams_per_user: 20000
+  ingestion_rate_mb: 25                   # 수집 속도 제한
+  max_global_streams_per_user: 20000      # 테넌트당 최대 스트림
   reject_old_samples: true
-  reject_old_samples_max_age: 8760h    # 1년
-  max_query_length: 8760h     # 90일
-  max_query_lookback: 8760h   # (선택) 조회 가능 과거 한도. 보존기간보다 크게 두면 안 됨
-  split_queries_by_interval: 24h   # 쿼리를 1일 단위로 쪼개 병렬 실행(예시)
-  query_timeout: 10m               # 쿼리 타임아웃 여유(예시)
+  reject_old_samples_max_age: 8760h       # 1년
+  max_query_length: 8760h
+  max_query_lookback: 8760h
+  split_queries_by_interval: 24h          # 쿼리 분할 간격
+  query_timeout: 10m
 
+  # 스트림별 보존 정책
   retention_stream:
-    - selector: '{level="info"}'  # info만 따로 관리
-      priority: 10                # 숫자 클수록 우선순위 높음
-      period: 30d                  # info는 3일만 보관
+    - selector: '{level="info"}'
+      priority: 10
+      period: 30d                         # info 레벨 30일 보존
 
     - selector: '{level="unknown"}'
       priority: 20
-      period: 3d
+      period: 3d                          # unknown 레벨 3일 보존
 
     - selector: '{job=~".+", level!~".+"}'
       priority: 19
-      period: 3d
+      period: 3d                          # 레벨 없는 로그 3일 보존
 
+  # Drilldown 기능 활성화
+  allow_structured_metadata: true         # Fields / Filters
+  volume_enabled: true                    # Volume
+  discover_log_levels: true               # Log Levels
 
-########################
-# Drilldown 필수 + 전역 한도
-########################
-  allow_structured_metadata: true      # Fields / Filters
-  volume_enabled:            true      # Volume
-  discover_log_levels:       true      # Log Levels
-
-########################
-# Pattern Ingester  ─ Patterns 탭
-########################
+###############################################################################
+# 9. Pattern Ingester (Patterns 탭)
+###############################################################################
 pattern_ingester:
-  enabled: true
+  enabled: true                           # 패턴 분석 활성화
 
-########################
-# Query-range  결과 캐시 (외부 Memcached)
-########################
+###############################################################################
+# 10. Query-range 결과 캐시 (ElastiCache Memcached)
+###############################################################################
 query_range:
   align_queries_with_step: true
-  cache_results: true
+  cache_results: true                     # 결과 캐싱 활성화
   max_retries: 5
 
   results_cache:
     cache:
       memcached_client:
-        addresses: ftt-mimir-memcache:11211
+        addresses: ${MEMCACHED_ENDPOINT}
         consistent_hash: true
         max_idle_conns: 16
-        timeout: 500ms         # 네트워크 지연 허용치
+        timeout: 500ms
 
-########################
-# Chunk 캐시  (외부 Memcached)
-########################
+###############################################################################
+# 11. Chunk 캐시 (ElastiCache Memcached)
+###############################################################################
 chunk_store_config:
   chunk_cache_config:
     memcached:
       batch_size: 50
       parallelism: 4
     memcached_client:
-      addresses: ftt-mimir-memcache:11211
+      addresses: ${MEMCACHED_ENDPOINT}
       consistent_hash: true
       timeout: 500ms
 
-
-########################
-# Querier
-########################
+###############################################################################
+# 12. Querier 설정
+###############################################################################
 querier:
-  multi_tenant_queries_enabled: true  # 멀티 테넌트 쿼리 활성화
+  multi_tenant_queries_enabled: true      # 멀티테넌트 쿼리 활성화
+  max_concurrent: 16                      # 동시 쿼리 수
+  query_timeout: 2m                       # 쿼리 타임아웃

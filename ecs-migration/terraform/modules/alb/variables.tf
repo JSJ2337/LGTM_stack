@@ -160,6 +160,17 @@ variable "health_check_config" {
   }
 }
 
+variable "deregistration_delay" {
+  description = "Deregistration delay in seconds (should match ECS stopTimeout)"
+  type        = number
+  default     = 120
+
+  validation {
+    condition     = var.deregistration_delay >= 0 && var.deregistration_delay <= 3600
+    error_message = "Deregistration delay must be between 0 and 3600 seconds."
+  }
+}
+
 variable "tags" {
   description = "Additional tags for resources"
   type        = map(string)

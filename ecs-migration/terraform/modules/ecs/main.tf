@@ -76,7 +76,8 @@ resource "aws_ecs_task_definition" "mimir" {
         { name = "MEMBERLIST_PORT", value = "7946" },
         { name = "MIMIR_BLOCKS_PREFIX", value = "blocks" },
         { name = "MIMIR_RULES_PREFIX", value = "rules" },
-        { name = "MIMIR_ALERTS_PREFIX", value = "alerts" }
+        { name = "MIMIR_ALERTS_PREFIX", value = "alerts" },
+        { name = "MEMCACHED_ENDPOINT", value = var.memcached_endpoint }
       ]
 
       logConfiguration = {
@@ -126,7 +127,8 @@ resource "aws_ecs_task_definition" "loki" {
         { name = "LOKI_S3_BUCKET", value = var.s3_bucket_name },
         { name = "LOKI_HOST", value = "loki.${var.cloudmap_namespace_name}" },
         { name = "MEMBERLIST_PORT", value = "7946" },
-        { name = "LOKI_STORAGE_PREFIX", value = "loki" }
+        { name = "LOKI_STORAGE_PREFIX", value = "loki" },
+        { name = "MEMCACHED_ENDPOINT", value = var.memcached_endpoint }
       ]
 
       logConfiguration = {

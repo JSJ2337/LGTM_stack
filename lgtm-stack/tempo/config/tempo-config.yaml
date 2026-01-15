@@ -1,9 +1,13 @@
-auth_enabled: false
+###############################################################################
+# Tempo Configuration - ECS Fargate 호환
+###############################################################################
+
+auth_enabled: true                        # 멀티테넌트 활성화 (일관성)
 
 server:
   http_listen_port: 3200
 
-multitenancy_enabled: true               # 테넌트 분리
+multitenancy_enabled: true                # 테넌트 분리
 
 ###############################################################################
 # 1. OTLP 수신
@@ -15,42 +19,50 @@ distributor:
         grpc: { endpoint: 0.0.0.0:4317 }
         http: { endpoint: 0.0.0.0:4318 }
 
-###############################################################################
-# 2. Ingester
-###############################################################################
-ingester:
-  trace_idle_period: 30s
-  max_block_duration: 10m
-  max_block_bytes: 268435456             # 256 MB
+  # 메모리 보호를 위한 속성 크기 제한 (Grafana Labs 권장)
+  max_recv_msg_size_mib: 16
 
 ###############################################################################
-# 3. Compactor – 보존 7 일
+# 2. Ingester (WAL 설정 포함)
+###############################################################################
+ingester:
+  trace_idle_period: 30s                  # 트레이스 유휴 시간
+  max_block_duration: 10m                 # 최대 블록 지속 시간
+  max_block_bytes: 268435456              # 256 MB
+
+  # WAL 설정 (데이터 손실 방지)
+  lifecycler:
+    ring:
+      replication_factor: 1               # 단일 노드 모드
+
+###############################################################################
+# 3. Compactor – 보존 7일
 ###############################################################################
 compactor:
   compaction:
-    block_retention: 168h                # 7 d
+    block_retention: 168h                 # 7일
 
 ###############################################################################
-# 4. S3 스토리지
+# 4. S3 스토리지 (환경변수 사용)
 ###############################################################################
 storage:
   trace:
     backend: s3
     s3:
-      bucket: sys-lgtm-s3
-      region: ap-northeast-2
-      endpoint: s3.northeast-2.amazonaws.com
-      prefix: ftt-tempo/
+      bucket: ${TEMPO_S3_BUCKET}
+      region: ${AWS_REGION}
+      endpoint: s3.${AWS_REGION}.amazonaws.com
+      prefix: tempo/
       storage_class: STANDARD_IA
 
 ###############################################################################
-# 5. Metrics-generator  (span-metrics & service-graphs)
+# 5. Metrics-generator (span-metrics & service-graphs)
 ###############################################################################
 metrics_generator:
   storage:
-    path: /var/tempo/generator-wal      # WAL 경로
-    remote_write:                      # ← storage 안으로 한 단계 들여쓰기
-      - url: http://10.130.30.62:9009/api/v1/push
+    path: /var/tempo/generator-wal
+    remote_write:
+      - url: ${MIMIR_REMOTE_WRITE_URL}
         send_exemplars: true
 
 ###############################################################################

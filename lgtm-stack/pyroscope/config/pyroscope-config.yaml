@@ -1,26 +1,50 @@
-target: all           # single-binary
+###############################################################################
+# Pyroscope Configuration - ECS Fargate 호환
+###############################################################################
 
+target: all                               # single-binary 모드
+
+###############################################################################
+# 멀티테넌시 설정
+###############################################################################
+multitenancy_enabled: true                # 멀티테넌트 활성화 (X-Scope-OrgID 헤더 필수)
+auth_enabled: true                        # 인증 활성화
+
+###############################################################################
+# 서버 설정
+###############################################################################
 server:
   http_listen_port: 4040
   grpc_listen_port: 4041
   log_level: info
 
+###############################################################################
+# S3 스토리지 (환경변수 사용)
+###############################################################################
 storage:
   backend: s3
   s3:
-    bucket_name: sys-lgtm-s3
-    endpoint: s3.ap-northeast-2.amazonaws.com
-    region: ap-northeast-2
+    bucket_name: ${PYROSCOPE_S3_BUCKET}
+    endpoint: s3.${AWS_REGION}.amazonaws.com
+    region: ${AWS_REGION}
     insecure: false
-  prefix: ftt-pyroscope
+  prefix: pyroscope
 
-
+###############################################################################
+# PyroscopeDB 설정
+###############################################################################
 pyroscopedb:
   data_path: /data
-  max_block_duration: 1h          # 헤드 블록 1 시간마다 컷팅
+  max_block_duration: 1h                  # 헤드 블록 1시간마다 컷팅
 
+###############################################################################
+# Compactor 설정
+###############################################################################
 compactor:
-  deletion_delay: 12h             # soft-delete → hard-delete 지연값 :contentReference[oaicite:0]{index=0}
+  deletion_delay: 12h                     # soft-delete → hard-delete 지연값
 
+###############################################################################
+# Limits (보존 정책)
+###############################################################################
 limits:
-  compactor_blocks_retention_period: 720h   # 30 일 보존 :contentReference[oaicite:1]{index=1}
+  compactor_blocks_retention_period: 720h # 30일 보존

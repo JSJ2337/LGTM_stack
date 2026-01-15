@@ -36,6 +36,9 @@ resource "aws_lb_target_group" "grafana" {
   vpc_id      = var.vpc_id
   target_type = "ip"
 
+  # ECS stopTimeout(120s)과 동일하게 설정하여 graceful shutdown 보장
+  deregistration_delay = var.deregistration_delay
+
   health_check {
     enabled             = true
     healthy_threshold   = var.health_check_config.healthy_threshold
@@ -58,6 +61,8 @@ resource "aws_lb_target_group" "mimir" {
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
+
+  deregistration_delay = var.deregistration_delay
 
   health_check {
     enabled             = true
@@ -82,6 +87,8 @@ resource "aws_lb_target_group" "loki" {
   vpc_id      = var.vpc_id
   target_type = "ip"
 
+  deregistration_delay = var.deregistration_delay
+
   health_check {
     enabled             = true
     healthy_threshold   = var.health_check_config.healthy_threshold
@@ -105,6 +112,8 @@ resource "aws_lb_target_group" "tempo" {
   vpc_id      = var.vpc_id
   target_type = "ip"
 
+  deregistration_delay = var.deregistration_delay
+
   health_check {
     enabled             = true
     healthy_threshold   = var.health_check_config.healthy_threshold
@@ -127,6 +136,8 @@ resource "aws_lb_target_group" "pyroscope" {
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
+
+  deregistration_delay = var.deregistration_delay
 
   health_check {
     enabled             = true

@@ -201,40 +201,42 @@ alb_health_check_config = {
 # ECS 서비스 설정
 # -----------------------------------------------------------------------------
 
+# ECS 서비스 설정 (Grafana Labs 권장: 50% 메모리 버퍼 적용)
+# CPU: Fargate 고정값 유지, Memory: 50% 여유분 추가
 service_config = {
   mimir = {
     cpu            = 1024
-    memory         = 2048
+    memory         = 3072    # 2048 + 50% 버퍼
     desired_count  = 1
     container_port = 8080
   }
   loki = {
     cpu            = 512
-    memory         = 1024
+    memory         = 1536    # 1024 + 50% 버퍼
     desired_count  = 1
     container_port = 3100
   }
   tempo = {
     cpu            = 512
-    memory         = 1024
+    memory         = 1536    # 1024 + 50% 버퍼
     desired_count  = 1
     container_port = 3200
   }
   pyroscope = {
     cpu            = 512
-    memory         = 1024
+    memory         = 1536    # 1024 + 50% 버퍼
     desired_count  = 1
     container_port = 4040
   }
   grafana = {
     cpu            = 512
-    memory         = 1024
+    memory         = 1536    # 1024 + 50% 버퍼
     desired_count  = 1
     container_port = 3000
   }
   alloy = {
     cpu            = 256
-    memory         = 512
+    memory         = 768     # 512 + 50% 버퍼
     desired_count  = 1
     container_port = 12345
   }
@@ -286,4 +288,17 @@ tenants = {
   default    = "jsj-lgtm"
   cloudflare = "jsj-cloudflare"
   rds        = "jsj-rds"
+}
+
+# -----------------------------------------------------------------------------
+# ElastiCache (Memcached) 설정
+# Mimir, Loki의 쿼리/인덱스 캐시에 사용
+# -----------------------------------------------------------------------------
+
+memcached_config = {
+  version            = "1.6.22"
+  node_type          = "cache.t3.micro"
+  num_cache_nodes    = 1
+  max_item_size      = 1048576  # 1MB
+  maintenance_window = "sun:05:00-sun:06:00"
 }

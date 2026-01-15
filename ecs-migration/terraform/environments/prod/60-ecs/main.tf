@@ -1,9 +1,9 @@
 # =============================================================================
 # 60-ECS Root Module - Production Environment
 # =============================================================================
-# 실행 순서: 8번째 (마지막)
+# 실행 순서: 9번째 (마지막)
 # 종속 모듈: 01-vpc, 05-cloudwatch-logs, 10-ecr, 20-iam, 30-security-groups,
-#           40-cloudmap, 50-alb
+#           35-elasticache, 40-cloudmap, 50-alb
 # =============================================================================
 
 terraform {
@@ -107,6 +107,16 @@ data "terraform_remote_state" "cloudwatch_logs" {
   }
 }
 
+data "terraform_remote_state" "elasticache" {
+  backend = "s3"
+
+  config = {
+    bucket = var.state_bucket
+    key    = "lgtm-ecs/prod/35-elasticache/terraform.tfstate"
+    region = var.aws_region
+  }
+}
+
 # -----------------------------------------------------------------------------
 # Data Source: AWS Account ID
 # -----------------------------------------------------------------------------
@@ -166,6 +176,9 @@ module "ecs" {
 
   # Tenant Configuration
   tenants = var.tenants
+
+  # ElastiCache (Memcached) Configuration
+  memcached_endpoint = data.terraform_remote_state.elasticache.outputs.primary_endpoint
 
   tags = var.tags
 }
