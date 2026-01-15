@@ -380,6 +380,9 @@ resource "aws_ecs_service" "mimir" {
   desired_count   = var.service_config.mimir.desired_count
   launch_type     = "FARGATE"
 
+  # ALB health check 시작 전 대기 시간 (컨테이너 초기화 시간 확보)
+  health_check_grace_period_seconds = 120
+
   network_configuration {
     subnets          = var.private_subnet_ids
     security_groups  = [var.security_group_id]
@@ -422,6 +425,9 @@ resource "aws_ecs_service" "loki" {
   task_definition = aws_ecs_task_definition.loki.arn
   desired_count   = var.service_config.loki.desired_count
   launch_type     = "FARGATE"
+
+  # ALB health check 시작 전 대기 시간 (컨테이너 초기화 시간 확보)
+  health_check_grace_period_seconds = 120
 
   network_configuration {
     subnets          = var.private_subnet_ids
@@ -466,6 +472,9 @@ resource "aws_ecs_service" "tempo" {
   desired_count   = var.service_config.tempo.desired_count
   launch_type     = "FARGATE"
 
+  # ALB health check 시작 전 대기 시간 (컨테이너 초기화 시간 확보)
+  health_check_grace_period_seconds = 120
+
   network_configuration {
     subnets          = var.private_subnet_ids
     security_groups  = [var.security_group_id]
@@ -509,6 +518,9 @@ resource "aws_ecs_service" "pyroscope" {
   desired_count   = var.service_config.pyroscope.desired_count
   launch_type     = "FARGATE"
 
+  # ALB health check 시작 전 대기 시간 (컨테이너 초기화 시간 확보)
+  health_check_grace_period_seconds = 120
+
   network_configuration {
     subnets          = var.private_subnet_ids
     security_groups  = [var.security_group_id]
@@ -551,6 +563,9 @@ resource "aws_ecs_service" "grafana" {
   task_definition = aws_ecs_task_definition.grafana.arn
   desired_count   = var.service_config.grafana.desired_count
   launch_type     = "FARGATE"
+
+  # ALB health check 시작 전 대기 시간 (컨테이너 초기화 시간 확보)
+  health_check_grace_period_seconds = 120
 
   network_configuration {
     subnets          = var.private_subnet_ids
