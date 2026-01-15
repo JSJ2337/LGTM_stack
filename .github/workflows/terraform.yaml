@@ -43,6 +43,7 @@ on:
         type: choice
         options:
           - all
+          - 00-bootstrap
           - 01-vpc
           - 05-cloudwatch-logs
           - 10-ecr
@@ -78,6 +79,22 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "**Component:** ${{ github.event.inputs.component }}" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Bootstrap: S3 버킷 + DynamoDB 테이블 (독립 실행)
+  # =============================================================================
+  bootstrap:
+    name: "Bootstrap"
+    needs: [approval]
+    if: >-
+      always() &&
+      (needs.approval.result == 'success' || needs.approval.result == 'skipped') &&
+      github.event.inputs.component == '00-bootstrap'
+    uses: ./.github/workflows/terraform-component.yaml
+    with:
+      component: 00-bootstrap
+      action: ${{ github.event.inputs.action || 'plan' }}
+    secrets: inherit
 
   # =============================================================================
   # Plan/Apply 순서: Stage 1 → 2 → 3 → 4 → 5
@@ -408,6 +425,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - approval
+      - bootstrap
       # Apply jobs
       - stage1-vpc
       - stage1-iam
