@@ -37,9 +37,6 @@ resource "aws_service_discovery_service" "services" {
     routing_policy = "MULTIVALUE"
   }
 
-  # ECS 태스크 헬스체크는 ECS에서 관리 (custom config 필수)
-  health_check_custom_config {}
-
   tags = merge(var.tags, {
     Name        = each.value
     Environment = var.environment
