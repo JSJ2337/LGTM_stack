@@ -85,16 +85,22 @@ jobs:
           TFVARS="ecs-migration/terraform/environments/prod/common.tfvars"
           COMPONENT="${{ matrix.component }}"
 
-          # common.tfvars에서 해당 컴포넌트의 버전 추출
-          VERSION=$(grep -A 10 'image_versions' "$TFVARS" | grep "$COMPONENT" | sed 's/.*= *"\([^"]*\)".*/\1/')
+          # common.tfvars에서 해당 컴포넌트의 버전 추출 (Dockerfile base image용)
+          BASE_VERSION=$(grep -A 10 'image_versions' "$TFVARS" | grep "$COMPONENT" | sed 's/.*= *"\([^"]*\)".*/\1/')
 
-          # 수동 입력값이 있으면 사용, 없으면 common.tfvars 값 사용
+          # ECR 태그: 버전-YYYYMMDD-HHMMSS (매번 새로운 태그 생성)
+          TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
+          ECR_TAG="${BASE_VERSION}-${TIMESTAMP}"
+
+          # 수동 입력값이 있으면 ECR 태그로 사용
           if [[ -n "${{ github.event.inputs.image_tag }}" ]]; then
-            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+            ECR_TAG="${{ github.event.inputs.image_tag }}"
           fi
-          echo "Image tag for $COMPONENT: $VERSION"
+
+          echo "base_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${ECR_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Base image version: ${BASE_VERSION}"
+          echo "ECR image tag: ${ECR_TAG}"
 
       - name: Configure AWS credentials
         if: steps.check.outputs.should_build == 'true'
@@ -134,7 +140,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VERSION=${{ steps.version.outputs.tag }}
+            VERSION=${{ steps.version.outputs.base_version }}
             BUILD_DATE=${{ github.event.repository.updated_at }}
             GIT_COMMIT=${{ github.sha }}
 
