@@ -4,6 +4,7 @@ server:
   http_listen_port: 4040
   grpc_listen_port: 4041
   log_level: info
+  http_path_prefix: /pyroscope
 
 storage:
   backend: s3

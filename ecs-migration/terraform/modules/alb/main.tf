@@ -120,7 +120,7 @@ resource "aws_lb_target_group" "tempo" {
     unhealthy_threshold = var.health_check_config.unhealthy_threshold
     timeout             = var.health_check_config.timeout
     interval            = var.health_check_config.interval
-    path                = "/ready"
+    path                = "/tempo/ready"
     matcher             = "200"
   }
 
@@ -145,7 +145,7 @@ resource "aws_lb_target_group" "pyroscope" {
     unhealthy_threshold = var.health_check_config.unhealthy_threshold
     timeout             = var.health_check_config.timeout
     interval            = var.health_check_config.interval
-    path                = "/ready"
+    path                = "/pyroscope/ready"
     matcher             = "200"
   }
 

@@ -2,6 +2,7 @@ auth_enabled: false
 
 server:
   http_listen_port: 3200
+  http_path_prefix: /tempo
 
 multitenancy_enabled: true
 
