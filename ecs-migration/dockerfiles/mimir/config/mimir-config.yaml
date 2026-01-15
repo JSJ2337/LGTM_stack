@@ -122,9 +122,5 @@ alertmanager_storage:
   s3:
     bucket_name: ${MIMIR_S3_BUCKET}
 
-##############################################################################
-# 11) 런타임 설정
-##############################################################################
-runtime_config:
-  period: 10s
-  file: s3://${MIMIR_S3_BUCKET}/mimir/runtime-config.yaml
+# runtime_config는 선택적 기능이며 S3 URI를 직접 지원하지 않음
+# 테넌트별 런타임 오버라이드가 필요한 경우 로컬 파일 또는 환경변수로 설정
