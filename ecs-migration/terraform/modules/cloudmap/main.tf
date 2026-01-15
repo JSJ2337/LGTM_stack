@@ -40,11 +40,6 @@ resource "aws_service_discovery_service" "services" {
   # ECS 태스크 헬스체크는 ECS에서 관리 (custom config 필수)
   health_check_custom_config {}
 
-  # 서비스 삭제 전 새 서비스 생성 (다운타임 방지)
-  lifecycle {
-    create_before_destroy = true
-  }
-
   tags = merge(var.tags, {
     Name        = each.value
     Environment = var.environment
