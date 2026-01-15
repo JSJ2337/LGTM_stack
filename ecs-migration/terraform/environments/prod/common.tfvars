@@ -276,8 +276,8 @@ log_services = {
 image_versions = {
   mimir     = "2.16.0"
   loki      = "3.5.1"
-  tempo     = "2.9.0"
-  pyroscope = "1.13.5"
+  tempo     = "2.9.0-20260116"
+  pyroscope = "1.13.5-20260116"
   grafana   = "12.1.0"
   alloy     = "1.9.2"
 }
