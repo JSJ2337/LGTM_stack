@@ -148,6 +148,30 @@ jobs:
               -backend-config="encrypt=true"
           fi
 
+      - name: Bootstrap Import (if exists)
+        if: inputs.component == '00-bootstrap'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          TFVARS="../common.tfvars"
+          STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
+          STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
+
+          echo "🔍 기존 리소스 import 시도..."
+
+          # S3 버킷 import (이미 존재하면 import, 없으면 skip)
+          if aws s3api head-bucket --bucket "${STATE_BUCKET}" 2>/dev/null; then
+            echo "✅ S3 버킷 ${STATE_BUCKET} 존재, import 시도..."
+            terraform import -var-file="../common.tfvars" \
+              aws_s3_bucket.terraform_state "${STATE_BUCKET}" || true
+          fi
+
+          # DynamoDB 테이블 import (이미 존재하면 import, 없으면 skip)
+          if aws dynamodb describe-table --table-name "${STATE_LOCK_TABLE}" 2>/dev/null; then
+            echo "✅ DynamoDB 테이블 ${STATE_LOCK_TABLE} 존재, import 시도..."
+            terraform import -var-file="../common.tfvars" \
+              aws_dynamodb_table.terraform_lock "${STATE_LOCK_TABLE}" || true
+          fi
+
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
