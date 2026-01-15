@@ -10,12 +10,12 @@ server:
 
 storage:
   backend: s3
-  prefix: ${PYROSCOPE_STORAGE_PREFIX}/
   s3:
     bucket_name: ${PYROSCOPE_S3_BUCKET}
     endpoint: s3.${AWS_REGION}.amazonaws.com
     region: ${AWS_REGION}
     insecure: false
+    prefix: ${PYROSCOPE_STORAGE_PREFIX}/
 
 pyroscopedb:
   data_path: /data
