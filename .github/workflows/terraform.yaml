@@ -376,12 +376,13 @@ jobs:
   # Destroy Stage 2: CloudWatch Logs, ECR, S3
   destroy-stage2-cloudwatch-logs:
     name: "Destroy-Stage2: CloudWatch Logs"
-    needs: [approval, destroy-stage3-security-groups, destroy-stage3-cloudmap]
+    needs: [approval, destroy-stage3-security-groups, destroy-stage3-cloudmap, destroy-stage3-elasticache]
     if: >-
       always() &&
       needs.approval.result == 'success' &&
       (needs.destroy-stage3-security-groups.result == 'success' || needs.destroy-stage3-security-groups.result == 'skipped') &&
       (needs.destroy-stage3-cloudmap.result == 'success' || needs.destroy-stage3-cloudmap.result == 'skipped') &&
+      (needs.destroy-stage3-elasticache.result == 'success' || needs.destroy-stage3-elasticache.result == 'skipped') &&
       github.event.inputs.action == 'destroy' &&
       (github.event.inputs.component == 'all' || github.event.inputs.component == '05-cloudwatch-logs')
     uses: ./.github/workflows/terraform-component.yaml
@@ -392,12 +393,13 @@ jobs:
 
   destroy-stage2-ecr:
     name: "Destroy-Stage2: ECR"
-    needs: [approval, destroy-stage3-security-groups, destroy-stage3-cloudmap]
+    needs: [approval, destroy-stage3-security-groups, destroy-stage3-cloudmap, destroy-stage3-elasticache]
     if: >-
       always() &&
       needs.approval.result == 'success' &&
       (needs.destroy-stage3-security-groups.result == 'success' || needs.destroy-stage3-security-groups.result == 'skipped') &&
       (needs.destroy-stage3-cloudmap.result == 'success' || needs.destroy-stage3-cloudmap.result == 'skipped') &&
+      (needs.destroy-stage3-elasticache.result == 'success' || needs.destroy-stage3-elasticache.result == 'skipped') &&
       github.event.inputs.action == 'destroy' &&
       (github.event.inputs.component == 'all' || github.event.inputs.component == '10-ecr')
     uses: ./.github/workflows/terraform-component.yaml
@@ -408,12 +410,13 @@ jobs:
 
   destroy-stage2-s3:
     name: "Destroy-Stage2: S3"
-    needs: [approval, destroy-stage3-security-groups, destroy-stage3-cloudmap]
+    needs: [approval, destroy-stage3-security-groups, destroy-stage3-cloudmap, destroy-stage3-elasticache]
     if: >-
       always() &&
       needs.approval.result == 'success' &&
       (needs.destroy-stage3-security-groups.result == 'success' || needs.destroy-stage3-security-groups.result == 'skipped') &&
       (needs.destroy-stage3-cloudmap.result == 'success' || needs.destroy-stage3-cloudmap.result == 'skipped') &&
+      (needs.destroy-stage3-elasticache.result == 'success' || needs.destroy-stage3-elasticache.result == 'skipped') &&
       github.event.inputs.action == 'destroy' &&
       (github.event.inputs.component == 'all' || github.event.inputs.component == '15-s3')
     uses: ./.github/workflows/terraform-component.yaml
