@@ -6,7 +6,8 @@ server:
   http_listen_port: 4040
   grpc_listen_port: 4041
   log_level: info
-  http_path_prefix: /pyroscope
+  # http_path_prefix 제거: 내부 gRPC 통신(scheduler/querier)에 영향을 주어 404 발생
+  # ALB 라우팅은 /pyroscope/* → 4040 포트로 설정됨
 
 storage:
   backend: s3

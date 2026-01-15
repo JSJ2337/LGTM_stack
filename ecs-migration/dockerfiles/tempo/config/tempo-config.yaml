@@ -2,7 +2,8 @@ auth_enabled: false
 
 server:
   http_listen_port: 3200
-  http_path_prefix: /tempo
+  # http_path_prefix 제거: 내부 통신 및 헬스체크에 영향을 줌
+  # ALB 라우팅은 /tempo/* → 3200 포트로 설정됨
 
 multitenancy_enabled: true
 
