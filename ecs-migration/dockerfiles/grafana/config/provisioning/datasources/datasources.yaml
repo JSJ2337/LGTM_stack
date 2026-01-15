@@ -65,4 +65,8 @@ datasources:
     type: grafana-pyroscope-datasource
     access: proxy
     url: ${PYROSCOPE_DATASOURCE_URL}
+    jsonData:
+      httpHeaderName1: X-Scope-OrgID
+    secureJsonData:
+      httpHeaderValue1: ${LGTM_TENANT_ID}
     editable: false

@@ -245,8 +245,8 @@ service_config = {
 # -----------------------------------------------------------------------------
 
 alloy_config = {
-  loki_tenant  = "aws-rag-cloudwatch"
-  mimir_tenant = "aws-rag-ec2"
+  loki_tenant  = "jsj-lgtm-header"
+  mimir_tenant = "jsj-lgtm-header"
 }
 
 # -----------------------------------------------------------------------------
