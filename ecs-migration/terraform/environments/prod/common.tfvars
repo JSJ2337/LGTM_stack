@@ -201,42 +201,44 @@ alb_health_check_config = {
 # ECS 서비스 설정
 # -----------------------------------------------------------------------------
 
-# ECS 서비스 설정 (Grafana Labs 권장: 50% 메모리 버퍼 적용)
-# CPU: Fargate 고정값 유지, Memory: 50% 여유분 추가
+# ECS 서비스 설정 (Fargate 유효 CPU/Memory 조합 사용)
+# 256 CPU: 512, 1024, 2048 MB
+# 512 CPU: 1024, 2048, 3072, 4096 MB
+# 1024 CPU: 2048, 3072, 4096, 5120, 6144, 7168, 8192 MB
 service_config = {
   mimir = {
     cpu            = 1024
-    memory         = 3072    # 2048 + 50% 버퍼
+    memory         = 3072    # Fargate 유효: 1024 CPU → 2048~8192 MB
     desired_count  = 1
     container_port = 8080
   }
   loki = {
     cpu            = 512
-    memory         = 1536    # 1024 + 50% 버퍼
+    memory         = 2048    # Fargate 유효: 512 CPU → 1024~4096 MB
     desired_count  = 1
     container_port = 3100
   }
   tempo = {
     cpu            = 512
-    memory         = 1536    # 1024 + 50% 버퍼
+    memory         = 2048    # Fargate 유효: 512 CPU → 1024~4096 MB
     desired_count  = 1
     container_port = 3200
   }
   pyroscope = {
     cpu            = 512
-    memory         = 1536    # 1024 + 50% 버퍼
+    memory         = 2048    # Fargate 유효: 512 CPU → 1024~4096 MB
     desired_count  = 1
     container_port = 4040
   }
   grafana = {
     cpu            = 512
-    memory         = 1536    # 1024 + 50% 버퍼
+    memory         = 2048    # Fargate 유효: 512 CPU → 1024~4096 MB
     desired_count  = 1
     container_port = 3000
   }
   alloy = {
     cpu            = 256
-    memory         = 768     # 512 + 50% 버퍼
+    memory         = 1024    # Fargate 유효: 256 CPU → 512~2048 MB
     desired_count  = 1
     container_port = 12345
   }
