@@ -2,7 +2,7 @@
 # Terraform State Backend Bootstrap
 # =============================================================================
 # S3 버킷과 DynamoDB 테이블을 생성합니다.
-# 이 모듈은 다른 모듈보다 먼저 수동으로 실행해야 합니다.
+# Bootstrap 전용 버킷(jsj-lgtm-terraform-bootstrap)은 수동으로 생성되어야 합니다.
 # =============================================================================
 
 terraform {
@@ -13,6 +13,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+  }
+
+  backend "s3" {
+    key = "bootstrap/terraform.tfstate"
   }
 }
 

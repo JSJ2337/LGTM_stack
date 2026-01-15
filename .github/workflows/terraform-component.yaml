@@ -52,15 +52,23 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           TFVARS="../common.tfvars"
-          STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
-          STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
           AWS_REGION=$(grep '^aws_region' $TFVARS | cut -d'"' -f2)
 
-          terraform init -upgrade \
-            -backend-config="bucket=${STATE_BUCKET}" \
-            -backend-config="region=${AWS_REGION}" \
-            -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
-            -backend-config="encrypt=true"
+          # Bootstrap은 별도 버킷 사용 (DynamoDB locking 없음)
+          if [ "${{ inputs.component }}" == "00-bootstrap" ]; then
+            terraform init -upgrade \
+              -backend-config="bucket=jsj-lgtm-terraform-bootstrap" \
+              -backend-config="region=${AWS_REGION}" \
+              -backend-config="encrypt=true"
+          else
+            STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
+            STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
+            terraform init -upgrade \
+              -backend-config="bucket=${STATE_BUCKET}" \
+              -backend-config="region=${AWS_REGION}" \
+              -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
+              -backend-config="encrypt=true"
+          fi
 
       - name: Terraform Validate
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -122,15 +130,23 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           TFVARS="../common.tfvars"
-          STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
-          STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
           AWS_REGION=$(grep '^aws_region' $TFVARS | cut -d'"' -f2)
 
-          terraform init -upgrade \
-            -backend-config="bucket=${STATE_BUCKET}" \
-            -backend-config="region=${AWS_REGION}" \
-            -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
-            -backend-config="encrypt=true"
+          # Bootstrap은 별도 버킷 사용 (DynamoDB locking 없음)
+          if [ "${{ inputs.component }}" == "00-bootstrap" ]; then
+            terraform init -upgrade \
+              -backend-config="bucket=jsj-lgtm-terraform-bootstrap" \
+              -backend-config="region=${AWS_REGION}" \
+              -backend-config="encrypt=true"
+          else
+            STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
+            STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
+            terraform init -upgrade \
+              -backend-config="bucket=${STATE_BUCKET}" \
+              -backend-config="region=${AWS_REGION}" \
+              -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
+              -backend-config="encrypt=true"
+          fi
 
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -182,15 +198,23 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           TFVARS="../common.tfvars"
-          STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
-          STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
           AWS_REGION=$(grep '^aws_region' $TFVARS | cut -d'"' -f2)
 
-          terraform init -upgrade \
-            -backend-config="bucket=${STATE_BUCKET}" \
-            -backend-config="region=${AWS_REGION}" \
-            -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
-            -backend-config="encrypt=true"
+          # Bootstrap은 별도 버킷 사용 (DynamoDB locking 없음)
+          if [ "${{ inputs.component }}" == "00-bootstrap" ]; then
+            terraform init -upgrade \
+              -backend-config="bucket=jsj-lgtm-terraform-bootstrap" \
+              -backend-config="region=${AWS_REGION}" \
+              -backend-config="encrypt=true"
+          else
+            STATE_BUCKET=$(grep '^state_bucket' $TFVARS | cut -d'"' -f2)
+            STATE_LOCK_TABLE=$(grep '^state_lock_table' $TFVARS | cut -d'"' -f2)
+            terraform init -upgrade \
+              -backend-config="bucket=${STATE_BUCKET}" \
+              -backend-config="region=${AWS_REGION}" \
+              -backend-config="dynamodb_table=${STATE_LOCK_TABLE}" \
+              -backend-config="encrypt=true"
+          fi
 
       - name: Terraform Destroy
         working-directory: ${{ env.TF_WORKING_DIR }}
