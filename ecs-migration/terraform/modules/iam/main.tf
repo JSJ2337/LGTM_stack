@@ -246,3 +246,12 @@ resource "aws_iam_role_policy" "grafana_cloudwatch_access" {
     ]
   })
 }
+
+# -----------------------------------------------------------------------------
+# ElastiCache Service-Linked Role
+# -----------------------------------------------------------------------------
+
+resource "aws_iam_service_linked_role" "elasticache" {
+  aws_service_name = "elasticache.amazonaws.com"
+  description      = "Service-linked role for ElastiCache"
+}
