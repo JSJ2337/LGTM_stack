@@ -215,16 +215,6 @@ variable "tempo_target_group_arn" {
   }
 }
 
-variable "tempo_otlp_target_group_arn" {
-  description = "Tempo OTLP ALB target group ARN"
-  type        = string
-
-  validation {
-    condition     = can(regex("^arn:aws:elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:targetgroup/.+$", var.tempo_otlp_target_group_arn))
-    error_message = "Target group ARN must be a valid ALB target group ARN."
-  }
-}
-
 variable "grafana_target_group_arn" {
   description = "Grafana ALB target group ARN"
   type        = string

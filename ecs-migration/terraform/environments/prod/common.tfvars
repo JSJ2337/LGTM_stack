@@ -93,13 +93,6 @@ alb_ingress_rules = {
     cidr_blocks = ["0.0.0.0/0"]
     description = "HTTPS access"
   }
-  tempo_otlp = {
-    from_port   = 4318
-    to_port     = 4318
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Tempo OTLP HTTP access"
-  }
 }
 
 # -----------------------------------------------------------------------------
@@ -148,20 +141,6 @@ ecs_service_ports = {
     description = "Tempo HTTP"
     from_alb    = true
     internal    = true
-  }
-  tempo_otlp_grpc = {
-    port        = 4317
-    protocol    = "tcp"
-    description = "Tempo OTLP gRPC"
-    from_alb    = true
-    internal    = false
-  }
-  tempo_otlp_http = {
-    port        = 4318
-    protocol    = "tcp"
-    description = "Tempo OTLP HTTP"
-    from_alb    = true
-    internal    = false
   }
   # Pyroscope (ALB + 내부)
   pyroscope = {

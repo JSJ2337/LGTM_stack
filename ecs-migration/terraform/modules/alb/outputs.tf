@@ -51,18 +51,12 @@ output "pyroscope_target_group_arn" {
 output "target_group_arns" {
   description = "Map of all target group ARNs"
   value = {
-    grafana    = aws_lb_target_group.grafana.arn
-    mimir      = aws_lb_target_group.mimir.arn
-    loki       = aws_lb_target_group.loki.arn
-    tempo      = aws_lb_target_group.tempo.arn
-    tempo_otlp = aws_lb_target_group.tempo_otlp.arn
-    pyroscope  = aws_lb_target_group.pyroscope.arn
+    grafana   = aws_lb_target_group.grafana.arn
+    mimir     = aws_lb_target_group.mimir.arn
+    loki      = aws_lb_target_group.loki.arn
+    tempo     = aws_lb_target_group.tempo.arn
+    pyroscope = aws_lb_target_group.pyroscope.arn
   }
-}
-
-output "tempo_otlp_target_group_arn" {
-  description = "Tempo OTLP target group ARN"
-  value       = aws_lb_target_group.tempo_otlp.arn
 }
 
 output "http_listener_arn" {

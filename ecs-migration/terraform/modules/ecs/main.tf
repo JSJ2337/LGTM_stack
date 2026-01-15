@@ -475,13 +475,6 @@ resource "aws_ecs_service" "tempo" {
     container_port   = var.service_config.tempo.container_port
   }
 
-  # OTLP HTTP (4318) target group
-  load_balancer {
-    target_group_arn = var.tempo_otlp_target_group_arn
-    container_name   = "tempo"
-    container_port   = 4318
-  }
-
   service_registries {
     registry_arn = var.cloudmap_service_arns["tempo"]
   }
