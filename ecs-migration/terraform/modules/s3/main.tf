@@ -16,14 +16,16 @@ resource "aws_s3_bucket" "lgtm_data" {
 }
 
 # -----------------------------------------------------------------------------
-# Bucket Versioning
+# Bucket Versioning - 비활성화
+# LGTM 데이터는 애플리케이션에서 자동 관리되므로 버전 관리 불필요
+# 버전 관리 시 스토리지 비용 증가 및 버킷 삭제 복잡성 증가
 # -----------------------------------------------------------------------------
 
 resource "aws_s3_bucket_versioning" "lgtm_data" {
   bucket = aws_s3_bucket.lgtm_data.id
 
   versioning_configuration {
-    status = "Enabled"
+    status = "Disabled"
   }
 }
 
